@@ -420,7 +420,7 @@ def submit_run(
 
     Returns:
         The run id, and the state of the run, or ``None`` if it can't be
-        read.
+        read (the cause goes to standard error, with the token redacted).
 
     Raises:
         OSError: If the WES can't be reached, rejects the request (also
@@ -458,7 +458,13 @@ def submit_run(
     )
     try:
         status = _fetch_json(_authorize(get, token))
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        # The run exists, so it is reported; the cause (e.g., an expired
+        # token) goes to the host's output, without the token
+        print(
+            redact(f"Can't read the state of the run: {exc}", token),
+            file=sys.stderr,
+        )
         return run_id, None
     state = status.get("state") if isinstance(status, dict) else None
     return run_id, state if isinstance(state, str) else None
@@ -864,7 +870,7 @@ class FormHandler(BaseHTTPRequestHandler):
         """
         config: dict[str, Any] = {
             "wes": self.server.wes_url is not None,
-            "wes_token": self.server.wes_token is not None,
+            "wes_token": bool(self.server.wes_url and self.server.wes_token),
         }
         trs_url = self.server.trs_url
         if trs_url is not None:

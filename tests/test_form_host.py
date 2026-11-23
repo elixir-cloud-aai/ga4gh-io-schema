@@ -1760,3 +1760,34 @@ def test_deeply_nested_schemas_from_urls_are_errors(
         monkeypatch.setattr(form_host, "_open", lambda *a, answer=answer: answer)
         with pytest.raises(ValueError, match="nested too deeply"):
             form_host.load_schema("http://trs.invalid/schema.json")
+
+
+def test_config_reports_a_token_only_if_it_is_used(wes: FakeWes) -> None:
+    """Test that ``wes_token`` is true only with a WES and a non-empty token."""
+    for options, expected in (
+        ({"wes_url": wes.url, "wes_token": ""}, False),
+        ({"wes_token": TOKEN}, False),
+        ({"wes_url": wes.url, "wes_token": TOKEN}, True),
+    ):
+        with serve(DEMO_SCHEMA, workflow_url="demo.wdl", **options) as host:
+            config = json.loads(_request(f"{host}/api/config")[2])
+        assert config["wes_token"] is expected
+
+
+def test_failed_state_reads_are_reported_without_the_token(
+    wes: FakeWes, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Test that the cause of a failed state read is printed, redacted."""
+    wes.status_answer = (401, b"{}")
+    wes.reason = f"expired token {TOKEN}"
+    with serve(
+        DEMO_SCHEMA, workflow_url="demo.wdl", wes_url=wes.url, wes_token=TOKEN
+    ) as host:
+        body = json.dumps(DEMO_VALUES).encode()
+        status, _, response = _request(f"{host}/api/runs", body, "POST")
+    assert status == 200
+    assert json.loads(response)["state"] is None
+    err = capsys.readouterr().err
+    assert "Can't read the state of the run: HTTP Error 401" in err
+    assert "[redacted]" in err
+    assert TOKEN not in err
