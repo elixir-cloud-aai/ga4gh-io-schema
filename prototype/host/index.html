@@ -33,7 +33,10 @@ SPDX-License-Identifier: Apache-2.0
         <button type="button" class="tab" role="tab" id="tab-outputs" data-tab="outputs"
                 aria-controls="panel-outputs" aria-selected="false" tabindex="-1">Outputs</button>
       </div>
-      <div class="tabpanel" role="tabpanel" id="panel-inputs" aria-labelledby="tab-inputs">
+      <!-- Focusable: without a form (no pick, an error), the panel has
+           nothing else to focus (ARIA tab pattern) -->
+      <div class="tabpanel" role="tabpanel" id="panel-inputs" aria-labelledby="tab-inputs"
+           tabindex="0">
         <div class="panels">
           <section class="card" aria-label="Workflow inputs">
             <h1 id="title"></h1>

@@ -216,6 +216,7 @@ def test_user_switches_between_inputs_and_outputs() -> None:
             assert page.locator("#panel-inputs").is_hidden()
             assert page.get_by_text("mock data").is_visible()
             assert page.locator(".poc").is_visible()
+            assert page.evaluate("document.documentElement.scrollWidth") <= 360
             assert page.url == f"{HOST}/{PICK}#outputs"
             # A reload keeps the open tab and the workflow
             page.reload()
