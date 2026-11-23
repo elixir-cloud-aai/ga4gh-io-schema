@@ -57,6 +57,13 @@ the GA4GH APIs give it. The workflow list is in the header; on wide
 screens, the run request is shown next to the form and stays in view
 while the form scrolls (under the form on narrow screens).
 
+Under the header, two tabs: **Inputs**, open by default, has everything
+of the steps below; **Outputs** is empty for now, apart from a note that
+the outputs it will show are mock data, not those of a run. The arrow
+keys, Home and End move between the tabs; the open tab is kept in the
+URL (`#outputs`), so that a reload or a link opens it again, and picking
+another workflow keeps it open.
+
 ### 1. Pick a workflow in TRS
 
 ![The page lists the workflows of the TRS stub in its header; no form is

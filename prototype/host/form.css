@@ -180,6 +180,43 @@ h2 {
   min-width: 0;
 }
 
+/* Tabs: Inputs and Outputs, under the header (prototype/host/tabs.js); the
+   open tab in the text colour with a bar under it, the others muted; not
+   the look of the buttons below; high contrast modes: see the end */
+
+.tabs {
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0.25rem;
+  margin: 0 0 1.25rem;
+  overflow-x: auto;
+}
+
+.tabs .tab {
+  background: transparent;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: calc(var(--radius) - 2px) calc(var(--radius) - 2px) 0 0;
+  color: var(--muted-fg);
+  flex: 0 0 auto;
+  padding: 0.5rem 1rem;
+}
+
+.tabs .tab:hover {
+  background: transparent;
+  color: var(--fg);
+}
+
+.tabs .tab[aria-selected="true"] {
+  border-bottom-color: var(--primary);
+  color: var(--fg);
+}
+
+/* Inside the tab, so that the scrolling tab list doesn't clip it */
+.tabs .tab:focus-visible {
+  outline-offset: -3px;
+}
+
 /* Layout: the form and the run request side by side on wide screens */
 
 main {
@@ -534,7 +571,8 @@ pre {
   }
 }
 
-/* High contrast modes drop the drawn arrow and the colours of errors;
+/* High contrast modes drop the drawn arrow, the colours of errors and
+   the bar of the open tab;
    the selectors of errors are those of "A field with an error" above */
 @media (forced-colors: active) {
   select:not([multiple]) {
@@ -551,5 +589,14 @@ pre {
   fieldset.field:has(> .error:not(:empty)) {
     border-style: double;
     border-width: 3px;
+  }
+
+  /* Transparent borders show there: only the open tab gets its bar */
+  .tabs .tab {
+    border-bottom-color: Canvas;
+  }
+
+  .tabs .tab[aria-selected="true"] {
+    border-bottom-color: Highlight;
   }
 }

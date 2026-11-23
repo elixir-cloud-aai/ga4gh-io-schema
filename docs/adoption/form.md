@@ -141,6 +141,7 @@ or an unverified checksum for the state and the primary descriptor.
 | `form.js` | The logic of the form, without the DOM: the control of each input, hidden inputs, and how the text of a control becomes a value. |
 | `io-schema-form.js` | `<io-schema-form>`, a plain web component that renders the fields of `form.js` and emits the values. |
 | `index.html`, `app.js`, `form.css` | The page: fetches the schema, renders the form, sends the values to the host and shows the run request, the run, or the errors. `form.css` is plain CSS with no external fonts or files, so the page works offline; it follows the light or dark mode of the system. |
+| `tabs.js` | The tabs of the page, Inputs (the form and the run request) and Outputs (a placeholder for now), with the keys of the ARIA tab pattern; the open tab is kept in the URL fragment (`#outputs`). |
 
 The steps of the [guide for portals and clients](portals.md#guide-for-portals-and-clients)
 are split between the two:

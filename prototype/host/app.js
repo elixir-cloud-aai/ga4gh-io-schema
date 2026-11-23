@@ -5,9 +5,14 @@
 // any, fetches the schema of the picked one (the query `tool`, `version` and
 // `type` of the page), renders the form, sends the values to the host and
 // shows the WES run request or the errors; with a WES configured, it can also
-// submit the run. A proof of concept (see docs/adoption/form.md).
+// submit the run. A proof of concept (see docs/adoption/form.md). The page
+// has two tabs, Inputs (all of the above) and Outputs (tabs.js).
 
 import "./io-schema-form.js";
+import { setUpTabs } from "./tabs.js";
+
+// Before anything is fetched, so that a link to a tab opens it at once
+setUpTabs(document.querySelector('[role="tablist"]'));
 
 const form = document.querySelector("io-schema-form");
 const result = document.querySelector("#request");

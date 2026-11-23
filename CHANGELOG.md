@@ -20,6 +20,11 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `https` only (or `http` to a loopback name). The token never reaches the
   page, the host's API or its output; `make demo` still sends nothing.
   (#151)
+- The demo page has two tabs under the header: Inputs, with the form and
+  the run request as before, and Outputs, empty for now apart from a note
+  that its outputs will be mock data. The tabs follow the ARIA tab pattern
+  (arrow keys, Home, End) and the open tab is kept in the URL fragment
+  (`#outputs`). (#160)
 
 ### Fixed
 
