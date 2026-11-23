@@ -76,7 +76,9 @@ export function tabOfKey(key, current, names) {
 export function setUpTabs(tablist, view = window) {
   const tabs = [...tablist.querySelectorAll('[role="tab"]')];
   const names = tabs.map((tab) => tab.dataset.tab);
-  const open = (name, { focus = false, keep = true } = {}) => {
+  // `updateUrl`: write the fragment of the tab into the URL (not when the
+  // fragment is where the tab came from)
+  const open = (name, { focus = false, updateUrl = true } = {}) => {
     for (const tab of tabs) {
       const selected = tab.dataset.tab === name;
       tab.setAttribute("aria-selected", String(selected));
@@ -84,7 +86,7 @@ export function setUpTabs(tablist, view = window) {
       tab.ownerDocument.getElementById(tab.getAttribute("aria-controls")).hidden = !selected;
       if (selected && focus) tab.focus();
     }
-    if (keep) {
+    if (updateUrl) {
       // Replaced, not pushed: switching tabs adds no history entries; the
       // query (the picked workflow) stays as it is
       const { pathname, search } = view.location;
@@ -94,6 +96,9 @@ export function setUpTabs(tablist, view = window) {
   for (const tab of tabs) {
     tab.addEventListener("click", () => open(tab.dataset.tab));
     tab.addEventListener("keydown", (event) => {
+      // With a modifier, the keys are the browser's (e.g. Alt+ArrowLeft:
+      // back), as in the ARIA pattern
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
       const name = tabOfKey(event.key, tab.dataset.tab, names);
       if (name === null) return;
       event.preventDefault();
@@ -101,6 +106,6 @@ export function setUpTabs(tablist, view = window) {
     });
   }
   // A link to the page with another fragment, or back and forward
-  view.addEventListener("hashchange", () => open(tabOfHash(view.location.hash, names), { keep: false }));
-  open(tabOfHash(view.location.hash, names), { keep: false });
+  view.addEventListener("hashchange", () => open(tabOfHash(view.location.hash, names), { updateUrl: false }));
+  open(tabOfHash(view.location.hash, names), { updateUrl: false });
 }

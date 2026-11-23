@@ -23,6 +23,10 @@ SPDX-License-Identifier: Apache-2.0
       </div>
     </header>
     <main>
+      <p class="poc">
+        Proof of concept of the GA4GH I/O Schema proposal, not a product.
+        <span id="wes"></span>
+      </p>
       <div class="tabs" role="tablist" aria-label="Views">
         <button type="button" class="tab" role="tab" id="tab-inputs" data-tab="inputs"
                 aria-controls="panel-inputs" aria-selected="true">Inputs</button>
@@ -30,10 +34,6 @@ SPDX-License-Identifier: Apache-2.0
                 aria-controls="panel-outputs" aria-selected="false" tabindex="-1">Outputs</button>
       </div>
       <div class="tabpanel" role="tabpanel" id="panel-inputs" aria-labelledby="tab-inputs">
-        <p class="poc">
-          Proof of concept of the GA4GH I/O Schema proposal, not a product.
-          <span id="wes"></span>
-        </p>
         <div class="panels">
           <section class="card" aria-label="Workflow inputs">
             <h1 id="title"></h1>
@@ -50,10 +50,12 @@ SPDX-License-Identifier: Apache-2.0
       </div>
       <div class="tabpanel" role="tabpanel" id="panel-outputs" aria-labelledby="tab-outputs"
            tabindex="0" hidden>
-        <p class="poc">
-          The outputs on this tab will be mock data that stand in for a
-          run, not the outputs of a run sent from this page.
-        </p>
+        <section class="card" aria-label="Workflow outputs">
+          <p class="placeholder">
+            The outputs on this tab will be mock data that stand in for a
+            run, not the outputs of a run sent from this page.
+          </p>
+        </section>
       </div>
     </main>
   </body>

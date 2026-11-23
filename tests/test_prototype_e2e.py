@@ -199,15 +199,23 @@ def test_user_switches_between_inputs_and_outputs() -> None:
             page.wait_for_selector("#title:has-text('I/O Schema demo')")
             inputs = page.get_by_role("tab", name="Inputs")
             outputs = page.get_by_role("tab", name="Outputs")
-            # The Inputs tab is open, as the page was before the tabs
+            # The Inputs tab is open, as the page was before the tabs, and
+            # fits a narrow screen without scrolling sideways
             assert inputs.get_attribute("aria-selected") == "true"
             assert page.locator("#panel-inputs").is_visible()
             assert page.locator("#panel-outputs").is_hidden()
+            assert page.evaluate("document.documentElement.scrollWidth") <= 360
+            # The banner shows on both tabs
+            assert page.locator(".poc").is_visible()
+            # The open tab has a bar of its own, not only another colour
+            bar = "e => getComputedStyle(e).borderBottomColor"
+            assert inputs.evaluate(bar) != outputs.evaluate(bar)
             # Mouse: the fragment keeps the tab, the query the workflow
             outputs.click()
             assert outputs.get_attribute("aria-selected") == "true"
             assert page.locator("#panel-inputs").is_hidden()
             assert page.get_by_text("mock data").is_visible()
+            assert page.locator(".poc").is_visible()
             assert page.url == f"{HOST}/{PICK}#outputs"
             # A reload keeps the open tab and the workflow
             page.reload()
@@ -227,17 +235,23 @@ def test_user_switches_between_inputs_and_outputs() -> None:
             assert outputs.get_attribute("aria-selected") == "true"
             page.keyboard.press("Home")
             assert inputs.get_attribute("aria-selected") == "true"
+            # With a modifier, the keys are the browser's
+            page.keyboard.press("Shift+ArrowRight")
+            assert inputs.get_attribute("aria-selected") == "true"
             # A link to the other tab (the fragment changes, no reload)
             page.evaluate("location.hash = '#outputs'")
+            page.wait_for_selector("#panel-outputs:not([hidden])")
+            # Back to the URL before the link: the Inputs tab
+            page.go_back()
+            page.wait_for_selector("#panel-inputs:not([hidden])")
+            assert outputs.get_attribute("aria-selected") == "false"
+            page.go_forward()
             page.wait_for_selector("#panel-outputs:not([hidden])")
             # Picking another workflow keeps the open tab
             page.select_option("#workflow", label="Greetings 1.0.0 (NFL)")
             page.wait_for_url(lambda url: "#outputs" in url and PICK not in url)
             page.wait_for_selector("#title:has-text('Greetings')", state="attached")
             assert outputs.get_attribute("aria-selected") == "true"
-            # The page fits a narrow screen without scrolling sideways
-            width = page.evaluate("document.documentElement.scrollWidth")
-            assert width <= 360
         finally:
             browser.close()
 

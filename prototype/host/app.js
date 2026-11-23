@@ -67,6 +67,8 @@ if (schema.errors) {
     .map((error) => error.message)
     .join("\n");
   form.hidden = true;
+  // Nothing to focus in the panel: the panel itself, for the error (ARIA tabs)
+  document.querySelector("#panel-inputs").tabIndex = 0;
 } else {
   document.querySelector("#title").textContent = schema.title ?? "IO schema";
   document.querySelector("#description").textContent = schema.description ?? "";

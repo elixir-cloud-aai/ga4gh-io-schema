@@ -212,6 +212,11 @@ h2 {
   color: var(--fg);
 }
 
+.placeholder {
+  color: var(--muted-fg);
+  margin: 0;
+}
+
 /* Inside the tab, so that the scrolling tab list doesn't clip it */
 .tabs .tab:focus-visible {
   outline-offset: -3px;
