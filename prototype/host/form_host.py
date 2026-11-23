@@ -23,6 +23,7 @@ http://127.0.0.1:8000/.
 """
 
 import argparse
+import http.client
 import json
 import os
 import re
@@ -93,7 +94,10 @@ NO_WORKFLOW_URL = (
 )
 
 #: Name of the environment variable with the bearer token of the WES, as
-#: ``examples/demo/conquest.py`` reads it.
+#: ``examples/demo/conquest.py`` reads it. The rules for sending it mirror
+#: those of ``examples/demo/demo_http.py`` on purpose, without importing
+#: it: the host imports the standard library and this package only, and
+#: runs without the demo scripts on its path.
 TOKEN_ENV = "WES_TOKEN"
 #: Name of the environment variable with the path of a file that holds the
 #: token, e.g., a mounted secret.
@@ -425,7 +429,11 @@ def submit_run(
         ValueError: If the answer isn't JSON or has no ``run_id``, or a
             token would be sent over ``http`` to a host that isn't a
             loopback one.
+        http.client.HTTPException: If the answer isn't valid HTTP (e.g., a
+            bad status line, which may quote the request).
     """
+    # `main` refuses such a setup at the start; this guards other callers
+    # (defence in depth)
     if token and not _token_allowed(wes_url):
         raise ValueError("Refusing to send the token over http.")
     base = wes_url.rstrip("/")
@@ -453,7 +461,7 @@ def submit_run(
     )
     try:
         status = _fetch_json(_authorize(get, token))
-    except (OSError, ValueError):
+    except (OSError, ValueError, http.client.HTTPException):
         return run_id, None
     state = status.get("state") if isinstance(status, dict) else None
     return run_id, state if isinstance(state, str) else None
@@ -679,7 +687,8 @@ class FormHost(ThreadingHTTPServer):
             their schemas are loaded again for each request, so changes in
             the TRS show at once.
         wes_token: Bearer token for the WES, if it needs one; sent to the
-            WES only, and redacted from everything the host answers.
+            WES only, and redacted from the answers of the WES that the
+            host passes on to the page.
     """
 
     def __init__(
@@ -895,7 +904,7 @@ class FormHandler(BaseHTTPRequestHandler):
             return
         try:
             run_id, state = submit_run(wes_url, request, token)
-        except (OSError, ValueError) as exc:
+        except (OSError, ValueError, http.client.HTTPException) as exc:
             message = redact(f"The WES at {wes_url} failed: {exc}", token)
             error = {"pointer": "", "message": message}
             self._send_json(HTTPStatus.BAD_GATEWAY, {"errors": [error]})

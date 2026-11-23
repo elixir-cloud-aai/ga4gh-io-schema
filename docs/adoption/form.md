@@ -168,9 +168,10 @@ The host's API, for the page:
 
 - `GET /api/schema`: the IO schema.
 - `GET /api/config`: `{"wes": true}` if a WES is configured, else
-  `{"wes": false}`; with a TRS, also its `workflows` (`tool_id`,
-  `version_id`, `descriptor_type`, `name`), or an empty list and
-  `trs_error` if they can't be listed.
+  `{"wes": false}`, and `wes_token`: whether the host sends a token to the
+  WES (a boolean, never the token); with a TRS, also its `workflows`
+  (`tool_id`, `version_id`, `descriptor_type`, `name`), or an empty list
+  and `trs_error` if they can't be listed.
 - With a TRS, the query `?tool=...&version=...&type=...` picks a workflow
   for `/api/schema`, `/api/params` and `/api/runs`; a workflow that can't
   be loaded gets `502`, and a request without a pick and without a
@@ -240,9 +241,10 @@ What the proof of concept leaves out, on purpose:
   step 6; the host checks them when the values are sent.
 - **Not hardened:** no authentication of its users, no TLS; the host binds
   to `127.0.0.1` by default. With a WES token, anyone who can reach the
-  host submits runs under the token's identity. It sends a Content Security Policy that allows
-  only its own files. It takes values only as JSON (`Content-Type:
-  application/json`) and only from its own pages, opened under a loopback
+  host submits runs under the token's identity. It sends a Content
+  Security Policy that allows only its own files. It takes values only as
+  JSON (`Content-Type: application/json`) and only from its own pages,
+  opened under a loopback
   name (`localhost`, `127.0.0.1`, `::1`) or the address that it binds
   (`Host` and `Origin` headers), so that other web pages can't make it
   submit runs; other requests get `415` or `403`. It answers the reads of

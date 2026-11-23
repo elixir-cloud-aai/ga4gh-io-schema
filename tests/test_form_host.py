@@ -17,6 +17,7 @@ import http.client
 import io
 import json
 import re
+import socketserver
 import threading
 import urllib.error
 import urllib.parse
@@ -129,6 +130,7 @@ class FakeWes(ThreadingHTTPServer):
         authorization: The ``Authorization`` headers of the requests, in
             order (``None`` for requests without one).
         reason: Reason phrase of the answers, if not the default one.
+        redirect: URL that ``POST /runs`` redirects to (302), if any.
     """
 
     def __init__(self) -> None:
@@ -144,6 +146,7 @@ class FakeWes(ThreadingHTTPServer):
         self.paths: list[str] = []
         self.authorization: list[str | None] = []
         self.reason: str | None = None
+        self.redirect: str | None = None
 
 
 class FakeWesHandler(BaseHTTPRequestHandler):
@@ -166,6 +169,12 @@ class FakeWesHandler(BaseHTTPRequestHandler):
             )
             for part in message.iter_parts()
         }
+        if self.server.redirect is not None:
+            self.send_response(302)
+            self.send_header("Location", self.server.redirect)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         self._answer(*self.server.run_answer)
 
     def do_GET(self) -> None:  # noqa: N802 - name defined by http.server
@@ -1598,3 +1607,111 @@ def test_main_rejects_unusable_tokens(
     err = capsys.readouterr().err
     assert message in err
     assert TOKEN not in err
+
+
+def test_token_is_not_passed_on_to_a_redirect(wes: FakeWes) -> None:
+    """Test that a WES that redirects doesn't make the host send the token on."""
+    other = FakeWes()
+    other.status_answer = (200, b'{"run_id": "run-2"}')
+    thread = threading.Thread(target=other.serve_forever, daemon=True)
+    thread.start()
+    wes.redirect = f"{other.url}/runs"
+    try:
+        with serve(
+            DEMO_SCHEMA, workflow_url="demo.wdl", wes_url=wes.url, wes_token=TOKEN
+        ) as host:
+            body = json.dumps(DEMO_VALUES).encode()
+            status, _, response = _request(f"{host}/api/runs", body, "POST")
+    finally:
+        other.shutdown()
+        other.server_close()
+    assert status == 200
+    assert json.loads(response)["run_id"] == "run-2"
+    assert wes.authorization[0] == f"Bearer {TOKEN}"
+    assert other.paths[0] == "/ga4gh/wes/v1/runs"
+    assert other.authorization[0] is None
+
+
+class EchoingWesHandler(socketserver.StreamRequestHandler):
+    """A broken WES: answers with the request's ``Authorization`` line.
+
+    The first request (``POST /runs``) gets a valid run, if the server's
+    ``post_ok`` is set; every other request gets the ``Authorization`` line
+    of the request as its status line, which isn't valid HTTP.
+    """
+
+    server: "EchoingWes"
+
+    def handle(self) -> None:
+        """Read the head of a request and answer it."""
+        lines = []
+        while (line := self.rfile.readline()) not in (b"\r\n", b"\n", b""):
+            lines.append(line)
+        length = next(
+            (
+                int(line.split(b":", 1)[1])
+                for line in lines
+                if line.lower().startswith(b"content-length:")
+            ),
+            0,
+        )
+        self.rfile.read(length)
+        if lines[0].startswith(b"POST") and self.server.post_ok:
+            body = b'{"run_id": "run-1"}'
+            self.wfile.write(
+                b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                b"Content-Length: %d\r\nConnection: close\r\n\r\n%s" % (len(body), body)
+            )
+            return
+        echo = next(line for line in lines if line.startswith(b"Authorization"))
+        self.wfile.write(b"GARBAGE " + echo)
+
+
+class EchoingWes(socketserver.ThreadingTCPServer):
+    """A broken WES that quotes the token in a bad status line.
+
+    Attributes:
+        url: Base URL of its WES API.
+        post_ok: Whether ``POST /runs`` gets a valid answer.
+    """
+
+    daemon_threads = True
+
+    def __init__(self, post_ok: bool) -> None:
+        """Bind to a free port.
+
+        Args:
+            post_ok: Whether ``POST /runs`` gets a valid answer.
+        """
+        super().__init__(("127.0.0.1", 0), EchoingWesHandler)
+        self.url = f"http://127.0.0.1:{self.server_address[1]}/ga4gh/wes/v1"
+        self.post_ok = post_ok
+
+
+@pytest.mark.parametrize("post_ok", [False, True])
+def test_bad_http_from_the_wes_is_redacted(
+    capsys: pytest.CaptureFixture[str], post_ok: bool
+) -> None:
+    """Test that answers that aren't HTTP, and quote the token, don't leak it."""
+    wes = EchoingWes(post_ok)
+    thread = threading.Thread(target=wes.serve_forever, daemon=True)
+    thread.start()
+    try:
+        with serve(
+            DEMO_SCHEMA, workflow_url="demo.wdl", wes_url=wes.url, wes_token=TOKEN
+        ) as host:
+            body = json.dumps(DEMO_VALUES).encode()
+            status, _, response = _request(f"{host}/api/runs", body, "POST")
+    finally:
+        wes.shutdown()
+        wes.server_close()
+    assert TOKEN.encode() not in response
+    if post_ok:
+        # The state can't be read
+        assert status == 200
+        assert json.loads(response)["state"] is None
+    else:
+        assert status == 502
+        assert "[redacted]" in json.loads(response)["errors"][0]["message"]
+    output = capsys.readouterr()
+    assert TOKEN not in output.out + output.err
