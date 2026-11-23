@@ -205,6 +205,8 @@ def test_user_switches_between_inputs_and_outputs() -> None:
             assert page.locator("#panel-inputs").is_visible()
             assert page.locator("#panel-outputs").is_hidden()
             assert page.evaluate("document.documentElement.scrollWidth") <= 360
+            # With a form, the panel itself is no stop of the tab order
+            assert page.locator("#panel-inputs").get_attribute("tabindex") is None
             # The banner shows on both tabs
             assert page.locator(".poc").is_visible()
             # The open tab has a bar of its own, not only another colour
@@ -229,11 +231,15 @@ def test_user_switches_between_inputs_and_outputs() -> None:
             outputs.focus()
             page.keyboard.press("ArrowRight")
             assert inputs.get_attribute("aria-selected") == "true"
+            assert page.locator("#panel-inputs").is_visible()
+            assert page.locator("#panel-outputs").is_hidden()
             assert page.evaluate("document.activeElement.dataset.tab") == "inputs"
             assert outputs.get_attribute("tabindex") == "-1"
             assert page.url == f"{HOST}/{PICK}"
             page.keyboard.press("End")
             assert outputs.get_attribute("aria-selected") == "true"
+            assert page.locator("#panel-outputs").is_visible()
+            assert page.locator("#panel-inputs").is_hidden()
             page.keyboard.press("Home")
             assert inputs.get_attribute("aria-selected") == "true"
             # With a modifier, the keys are the browser's

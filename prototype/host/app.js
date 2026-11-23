@@ -71,6 +71,8 @@ if (schema.errors) {
   document.querySelector("#title").textContent = schema.title ?? "IO schema";
   document.querySelector("#description").textContent = schema.description ?? "";
   form.schema = schema;
+  // The form's controls are focusable: no extra stop on the panel
+  document.querySelector("#panel-inputs").removeAttribute("tabindex");
 }
 
 // Posts JSON to the host; a failure (network, or an answer that isn't JSON)
