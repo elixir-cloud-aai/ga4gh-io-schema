@@ -1707,7 +1707,8 @@ def test_bad_http_from_the_wes_is_redacted(
         wes.server_close()
     assert TOKEN.encode() not in response
     if post_ok:
-        # The state can't be read
+        # Only the status request fails: the run is reported without state,
+        # and nothing is printed (checked below)
         assert status == 200
         assert json.loads(response)["state"] is None
     else:
@@ -1715,3 +1716,18 @@ def test_bad_http_from_the_wes_is_redacted(
         assert "[redacted]" in json.loads(response)["errors"][0]["message"]
     output = capsys.readouterr()
     assert TOKEN not in output.out + output.err
+
+
+def test_bad_http_from_the_trs_is_an_os_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that a TRS that doesn't answer valid HTTP is an OSError, as other failures."""
+
+    def bad_status_line(*args: Any, **kwargs: Any) -> Any:
+        raise http.client.BadStatusLine("GARBAGE")
+
+    monkeypatch.setattr(form_host.urllib.request, "urlopen", bad_status_line)
+    with pytest.raises(OSError, match="Not a valid HTTP answer"):
+        form_host.list_workflows("http://trs.invalid/ga4gh/trs/v2")
+    with pytest.raises(OSError, match="Not a valid HTTP answer"):
+        form_host.load_schema("http://trs.invalid/schema.json")

@@ -207,8 +207,7 @@ def load_schema(source: str) -> dict[str, Any]:
     """
     if source.startswith(("http://", "https://")):
         request = urllib.request.Request(source, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-            document = json.loads(_read_answer(response))
+        document = json.loads(_open(request))
         if isinstance(document, dict) and "$schema" not in document:
             content = document.get("content")
             if not isinstance(content, str):
@@ -424,13 +423,11 @@ def submit_run(
         read.
 
     Raises:
-        OSError: If the WES can't be reached or rejects the request (also
-            ``urllib.error.HTTPError``).
+        OSError: If the WES can't be reached, rejects the request (also
+            ``urllib.error.HTTPError``) or doesn't answer valid HTTP.
         ValueError: If the answer isn't JSON or has no ``run_id``, or a
             token would be sent over ``http`` to a host that isn't a
             loopback one.
-        http.client.HTTPException: If the answer isn't valid HTTP (e.g., a
-            bad status line, which may quote the request).
     """
     # `main` refuses such a setup at the start; this guards other callers
     # (defence in depth)
@@ -461,7 +458,7 @@ def submit_run(
     )
     try:
         status = _fetch_json(_authorize(get, token))
-    except (OSError, ValueError, http.client.HTTPException):
+    except (OSError, ValueError):
         return run_id, None
     state = status.get("state") if isinstance(status, dict) else None
     return run_id, state if isinstance(state, str) else None
@@ -497,12 +494,36 @@ def _fetch_json(request: urllib.request.Request) -> Any:
         The parsed answer.
 
     Raises:
-        OSError: If the request fails (also ``urllib.error.HTTPError``).
+        OSError: If the request fails (also ``urllib.error.HTTPError``),
+            or the answer isn't valid HTTP (e.g., a bad status line).
         ValueError: If the answer isn't JSON.
     """
     request.add_header("Accept", "application/json")
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-        return json.loads(_read_answer(response))
+    return json.loads(_open(request))
+
+
+def _open(request: urllib.request.Request) -> bytes:
+    """Send a request and read the body of the answer.
+
+    Args:
+        request: The request.
+
+    Returns:
+        The body, up to :data:`MAX_ANSWER` bytes.
+
+    Raises:
+        OSError: If the request fails (also ``urllib.error.HTTPError``), or
+            the answer isn't valid HTTP: ``http.client`` raises neither
+            ``OSError`` nor ``ValueError`` then (e.g., ``BadStatusLine``),
+            and its message may quote the answer, so callers handle and
+            redact it like any other failure.
+        ValueError: If the body is larger than :data:`MAX_ANSWER` bytes.
+    """
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+            return _read_answer(response)
+    except http.client.HTTPException as exc:
+        raise OSError(f"Not a valid HTTP answer: {exc!r}") from None
 
 
 def _read_answer(response: Any) -> bytes:
@@ -904,7 +925,7 @@ class FormHandler(BaseHTTPRequestHandler):
             return
         try:
             run_id, state = submit_run(wes_url, request, token)
-        except (OSError, ValueError, http.client.HTTPException) as exc:
+        except (OSError, ValueError) as exc:
             message = redact(f"The WES at {wes_url} failed: {exc}", token)
             error = {"pointer": "", "message": message}
             self._send_json(HTTPStatus.BAD_GATEWAY, {"errors": [error]})
