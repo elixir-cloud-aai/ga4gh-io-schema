@@ -12,6 +12,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- The host of the form sends a bearer token to the WES, for a WES that
+  checks access tokens: from `WES_TOKEN`, or from the file that
+  `WES_TOKEN_FILE` names (e.g., a mounted secret), to the WES only and over
+  `https` only (or `http` to a loopback name). The token never reaches the
+  page, the host's API or its output; `make demo` still sends nothing.
+  (#151)
+
 ### Fixed
 
 - The live demo works from a clone made with a strict umask (e.g., 077),

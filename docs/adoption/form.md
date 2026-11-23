@@ -91,6 +91,33 @@ Options:
 - `--host` and `--port`: the address to bind; the default is
   `127.0.0.1:8000`.
 
+A WES that checks access tokens (e.g., OIDC access tokens) needs a bearer
+token with each request. The host reads it from the environment, never from
+the command line, whose arguments show up in process lists:
+
+- `WES_TOKEN`: the token itself, the variable that `conquest.py` of the
+  [end-to-end demo](demo.md) reads too;
+- `WES_TOKEN_FILE`: the path of a file that holds it, e.g., a mounted
+  secret; whitespace around the token (a final line break) is dropped.
+
+Setting both is an error, and so is a token that isn't a bearer token as
+[RFC 6750](https://www.rfc-editor.org/rfc/rfc6750#section-2.1) defines it
+(letters, digits and `-._~+/`, then any number of `=`). Empty variables
+count as unset. The host sends the token as `Authorization: Bearer <token>`
+on both requests to the WES (`POST /runs` and the status request), and
+only there: never to the TRS, and not to the target of a redirect. It
+sends it over `https` only, and refuses to start with a token and an
+`http` WES URL, unless the WES is on a loopback name (`localhost`,
+`127.0.0.1`, `::1`, for local tests). Without `--wes-url`, a token is
+ignored, with a note. The token never reaches the page: `/api/config` says
+only whether one is set (`"wes_token": true`), the host never prints it,
+and where the WES quotes it in an answer (a run id, a state, the reason of
+an error), the host replaces it with `[redacted]`.
+
+A token in the environment is a demo convenience: it expires, and has to be
+renewed by hand, with a restart of the host. A portal sends the token of
+the logged-in user instead.
+
 `--trs-url` and `--wes-url` must be `http(s)` URLs without credentials:
 the host's error messages, which name these URLs, reach the browser. It
 refuses URLs with user information (`user:password@`), and URLs with a
@@ -141,9 +168,10 @@ The host's API, for the page:
 
 - `GET /api/schema`: the IO schema.
 - `GET /api/config`: `{"wes": true}` if a WES is configured, else
-  `{"wes": false}`; with a TRS, also its `workflows` (`tool_id`,
-  `version_id`, `descriptor_type`, `name`), or an empty list and
-  `trs_error` if they can't be listed.
+  `{"wes": false}`, and `wes_token`: whether the host sends a token to the
+  WES (a boolean, never the token); with a TRS, also its `workflows`
+  (`tool_id`, `version_id`, `descriptor_type`, `name`), or an empty list
+  and `trs_error` if they can't be listed.
 - With a TRS, the query `?tool=...&version=...&type=...` picks a workflow
   for `/api/schema`, `/api/params` and `/api/runs`; a workflow that can't
   be loaded gets `502`, and a request without a pick and without a
@@ -170,9 +198,11 @@ values from the controls); see
 What the proof of concept leaves out, on purpose:
 
 - **Minimal submission:** it sends the four fields of the run request
-  and nothing else: no `tags`, no `workflow_engine_parameters`, no
-  attachments, and no authentication, so it works only with a WES that
-  accepts anonymous runs and can fetch the `workflow_url`; it reads the
+  and nothing else: no `tags`, no `workflow_engine_parameters` and no
+  attachments, so it works only with a WES that can fetch the
+  `workflow_url`. Its only credential is one bearer token from the
+  environment (see [Run it](#run-it)), the same for every user of the
+  page; without one, the WES must accept anonymous runs. It reads the
   state once and doesn't follow the run. The [end-to-end demo](demo.md)
   submits runs to Conquest from the command line (`conquest.py`), with the
   engine parameters that Conquest needs.
@@ -209,10 +239,12 @@ What the proof of concept leaves out, on purpose:
   `$dynamicRef`.
 - **Defaults of file references** are prefilled without the checks of
   step 6; the host checks them when the values are sent.
-- **Not hardened:** no authentication, no TLS; the host binds to
-  `127.0.0.1` by default. It sends a Content Security Policy that allows
-  only its own files. It takes values only as JSON (`Content-Type:
-  application/json`) and only from its own pages, opened under a loopback
+- **Not hardened:** no authentication of its users, no TLS; the host binds
+  to `127.0.0.1` by default. With a WES token, anyone who can reach the
+  host submits runs under the token's identity. It sends a Content
+  Security Policy that allows only its own files. It takes values only as
+  JSON (`Content-Type: application/json`) and only from its own pages,
+  opened under a loopback
   name (`localhost`, `127.0.0.1`, `::1`) or the address that it binds
   (`Host` and `Origin` headers), so that other web pages can't make it
   submit runs; other requests get `415` or `403`. It answers the reads of

@@ -137,7 +137,7 @@ can fetch the `workflow_url` can run it.
 
 ### Point it at a real TRS or WES
 
-Two environment variables change the stack, without changing a file:
+Environment variables change the stack, without changing a file:
 
 - `TRS_URL`: the base URL of another TRS API to pick workflows from, e.g.,
   a TRS-Filer instance with the demo registered (see [End-to-end
@@ -147,8 +147,17 @@ Two environment variables change the stack, without changing a file:
   "Send to WES" under a valid run request and shows the run id and state.
   The WES must be able to fetch the `workflow_url`, so use it with a
   `TRS_URL` that the WES can reach: the stub is reachable only inside the
-  stack. The host sends no credentials, so the WES must accept anonymous
-  runs.
+  stack.
+- `WES_TOKEN` or `WES_TOKEN_FILE`: a bearer token for a WES that checks
+  access tokens, or the path of a file inside the `host` container that
+  holds one (mount it, e.g., as a Compose secret in an override file). The
+  host sends it to the WES only, over `https` only, never to the TRS or
+  the page (see [Run it](form.md#run-it) of the form). Without either,
+  the host sends no credentials, and the WES must accept anonymous runs.
+  A token in the environment expires and has to be renewed by hand
+  (restart the stack); a portal sends the token of the logged-in user
+  instead. `make demo` clears both, as it clears `TRS_URL` and `WES_URL`,
+  so that the local demo never sends anything.
 
 Both URLs are fetched from inside the `host` container, where `127.0.0.1`
 and `localhost` are the container itself, not your machine. A TRS or WES
@@ -190,8 +199,10 @@ python prototype/host/form_host.py --trs-url http://127.0.0.1:8080/ga4gh/trs/v2
 - **Small workflows:** the stub serves the WDL demo and one small seeded
   workflow each in CWL, Nextflow and Snakemake, each a single file; none
   of them is run.
-- **No security:** no authentication, no TLS, no credentials sent to a TRS
-  or WES; the ports are bound to `127.0.0.1`. Keep it there.
+- **No security:** no authentication of its users, no TLS, no credentials
+  sent to a TRS, and none to a WES unless `WES_TOKEN` or `WES_TOKEN_FILE`
+  is set; the ports are bound to `127.0.0.1`. Keep it there: with a token,
+  anyone who can reach the page submits runs under the token's identity.
 - **No persistence and no service registry:** the TRS and the WES are
   given by URL; nothing is stored.
 

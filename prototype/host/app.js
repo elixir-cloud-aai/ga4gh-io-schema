@@ -28,8 +28,11 @@ try {
   status.textContent = `The host failed: ${error}`;
   throw error;
 }
+// `wes_token` says only whether the host sends a token: the page never sees it
 status.textContent = config.wes
-  ? "A WES is configured: a valid run request can be sent there."
+  ? `A WES is configured: a valid run request can be sent there${
+      config.wes_token ? ", with an access token" : ""
+    }.`
   : "No WES is configured: the run request is shown, not sent.";
 
 // The workflows of the TRS; picking one loads the page for it.

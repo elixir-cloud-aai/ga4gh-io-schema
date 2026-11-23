@@ -13,21 +13,27 @@ sends the values that the user enters; the host validates them against
 ``docs/specification/keywords.md``), and turns valid values into a WES run
 request with :func:`ga4gh_io_schema.wes.build_run_request`. It shows the
 request; only if it is given the URL of a WES, it also submits it there on
-request and shows the run id and state.
+request and shows the run id and state. A bearer token for the WES, if it
+needs one, comes from the environment (``WES_TOKEN``, or a file named by
+``WES_TOKEN_FILE``; see :func:`read_token`); it is sent to the WES only, over
+``https`` only, and never reaches the page.
 
 Run it with ``python prototype/host/form_host.py`` and open
 http://127.0.0.1:8000/.
 """
 
 import argparse
+import http.client
 import json
+import os
+import re
 import sys
 import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
 from collections import deque
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -87,8 +93,97 @@ NO_WORKFLOW_URL = (
     "nor its primary descriptor (x-ga4gh-workflow.primary_descriptor_path)."
 )
 
+#: Name of the environment variable with the bearer token of the WES, as
+#: ``examples/demo/conquest.py`` reads it. The rules for sending it mirror
+#: those of ``examples/demo/demo_http.py`` on purpose, without importing
+#: it: the host imports the standard library and this package only, and
+#: runs without the demo scripts on its path.
+TOKEN_ENV = "WES_TOKEN"
+#: Name of the environment variable with the path of a file that holds the
+#: token, e.g., a mounted secret.
+TOKEN_FILE_ENV = "WES_TOKEN_FILE"
+#: A bearer token as RFC 6750 defines it (``b64token``): nothing that could
+#: end the ``Authorization`` header or start another one.
+BEARER_TOKEN = re.compile(r"[A-Za-z0-9\-._~+/]+=*")
+#: What the token is replaced with where an answer of the WES quotes it.
+REDACTED = "[redacted]"
+
 #: A subschema with the resolver of its base URI.
 Scope = tuple[Any, Any]
+
+
+def read_token(environ: Mapping[str, str]) -> str | None:
+    """Read the bearer token of the WES from the environment.
+
+    The token is the value of ``WES_TOKEN``, or the content of the file that
+    ``WES_TOKEN_FILE`` names, without the whitespace around it (a mounted
+    secret often ends with a line break). Empty variables count as unset, as
+    Docker Compose passes unset ones. No error message shows the token.
+
+    Args:
+        environ: The environment, e.g., ``os.environ``.
+
+    Returns:
+        The token, or ``None`` if neither variable is set.
+
+    Raises:
+        ValueError: If both variables are set, the file can't be read or is
+            empty, or the token isn't a bearer token as RFC 6750 defines it.
+    """
+    value = environ.get(TOKEN_ENV) or ""
+    path = environ.get(TOKEN_FILE_ENV) or ""
+    if value and path:
+        raise ValueError(f"Set {TOKEN_ENV} or {TOKEN_FILE_ENV}, not both.")
+    if path:
+        try:
+            value = Path(path).read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeDecodeError) as exc:
+            # The reason only (e.g., "No such file or directory"), not a
+            # decoder's quote of the content
+            reason = exc.strerror if isinstance(exc, OSError) else "not UTF-8"
+            raise ValueError(
+                f"Can't read the file of {TOKEN_FILE_ENV} ({path}): {reason}"
+            ) from None
+        if not value:
+            raise ValueError(f"The file of {TOKEN_FILE_ENV} is empty.")
+    if not value:
+        return None
+    if not BEARER_TOKEN.fullmatch(value):
+        raise ValueError(
+            f"The token of {TOKEN_ENV} or {TOKEN_FILE_ENV} isn't a bearer token "
+            "(RFC 6750: letters, digits and -._~+/, then any number of =)."
+        )
+    return value
+
+
+def _token_allowed(url: str) -> bool:
+    """Check that a bearer token may be sent to a URL.
+
+    Args:
+        url: URL of the WES API.
+
+    Returns:
+        Whether the URL is ``https``, or ``http`` to a loopback name (a WES
+        for local tests).
+    """
+    parts = urllib.parse.urlsplit(url)
+    return parts.scheme == "https" or (
+        parts.scheme == "http" and parts.hostname in LOOPBACK_NAMES
+    )
+
+
+def redact(text: str, token: str | None) -> str:
+    """Replace a token in a text that may quote it.
+
+    Args:
+        text: The text, e.g., an error message with an answer of the WES.
+        token: The token, if any.
+
+    Returns:
+        The text, with every occurrence of the token replaced by
+        :data:`REDACTED`.
+    """
+    return text.replace(token, REDACTED) if token else text
 
 
 def load_schema(source: str) -> dict[str, Any]:
@@ -112,13 +207,12 @@ def load_schema(source: str) -> dict[str, Any]:
     """
     if source.startswith(("http://", "https://")):
         request = urllib.request.Request(source, headers={"Accept": "application/json"})
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-            document = json.loads(_read_answer(response))
+        document = _parse_json(_open(request))
         if isinstance(document, dict) and "$schema" not in document:
             content = document.get("content")
             if not isinstance(content, str):
                 raise ValueError("The response is no IO schema and no FileWrapper.")
-            document = json.loads(content)
+            document = _parse_json(content)
     else:
         document = json.loads(Path(source).read_text(encoding="utf-8"))
     validate_schema(document)
@@ -308,26 +402,37 @@ def check_values(
     return request, []
 
 
-def submit_run(wes_url: str, request: dict[str, Any]) -> tuple[str, str | None]:
+def submit_run(
+    wes_url: str, request: dict[str, Any], token: str | None = None
+) -> tuple[str, str | None]:
     """Submit a run request to a WES and read the state of the run.
 
     The request is posted as ``multipart/form-data``, as WES defines it,
-    with ``workflow_params`` as JSON text; no files are attached.
+    with ``workflow_params`` as JSON text; no files are attached. With a
+    token, both requests carry ``Authorization: Bearer <token>``, which
+    isn't passed on if the WES redirects.
 
     Args:
         wes_url: Base URL of the WES API, e.g.,
             ``https://wes.example.org/ga4gh/wes/v1``.
         request: The run request.
+        token: Bearer token for the WES, if it needs one.
 
     Returns:
         The run id, and the state of the run, or ``None`` if it can't be
-        read.
+        read (the cause goes to standard error, with the token redacted).
 
     Raises:
-        OSError: If the WES can't be reached or rejects the request (also
-            ``urllib.error.HTTPError``).
-        ValueError: If the answer isn't JSON or has no ``run_id``.
+        OSError: If the WES can't be reached, rejects the request (also
+            ``urllib.error.HTTPError``) or doesn't answer valid HTTP.
+        ValueError: If the answer isn't JSON or has no ``run_id``, or a
+            token would be sent over ``http`` to a host that isn't a
+            loopback one.
     """
+    # `main` refuses such a setup at the start; this guards other callers
+    # (defence in depth)
+    if token and not _token_allowed(wes_url):
+        raise ValueError("Refusing to send the token over http.")
     base = wes_url.rstrip("/")
     boundary = uuid.uuid4().hex
     parts = []
@@ -338,27 +443,51 @@ def submit_run(wes_url: str, request: dict[str, Any]) -> tuple[str, str | None]:
             f'name="{name}"\r\n\r\n{text}\r\n'
         )
     body = "".join(parts) + f"--{boundary}--\r\n"
-    answer = _fetch_json(
-        urllib.request.Request(
-            f"{base}/runs",
-            data=body.encode("utf-8"),
-            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-            method="POST",
-        )
+    post = urllib.request.Request(
+        f"{base}/runs",
+        data=body.encode("utf-8"),
+        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        method="POST",
     )
+    answer = _fetch_json(_authorize(post, token))
     run_id = answer.get("run_id") if isinstance(answer, dict) else None
     if not isinstance(run_id, str):
         raise ValueError("The answer has no run_id.")
+    get = urllib.request.Request(
+        f"{base}/runs/{urllib.parse.quote(run_id, safe='')}/status"
+    )
     try:
-        status = _fetch_json(
-            urllib.request.Request(
-                f"{base}/runs/{urllib.parse.quote(run_id, safe='')}/status"
-            )
+        status = _fetch_json(_authorize(get, token))
+    except (OSError, ValueError) as exc:
+        # The run exists, so it is reported; the cause (e.g., an expired
+        # token) goes to the host's output, without the token
+        print(
+            redact(f"Can't read the state of the run: {exc}", token),
+            file=sys.stderr,
         )
-    except (OSError, ValueError):
         return run_id, None
     state = status.get("state") if isinstance(status, dict) else None
     return run_id, state if isinstance(state, str) else None
+
+
+def _authorize(
+    request: urllib.request.Request, token: str | None
+) -> urllib.request.Request:
+    """Add a bearer token to a request, if there is one.
+
+    The header is unredirected: ``urllib`` doesn't pass it on to the target
+    of a redirect, which may be another host.
+
+    Args:
+        request: The request to the WES.
+        token: The bearer token, if any.
+
+    Returns:
+        The request.
+    """
+    if token:
+        request.add_unredirected_header("Authorization", f"Bearer {token}")
+    return request
 
 
 def _fetch_json(request: urllib.request.Request) -> Any:
@@ -371,12 +500,56 @@ def _fetch_json(request: urllib.request.Request) -> Any:
         The parsed answer.
 
     Raises:
-        OSError: If the request fails (also ``urllib.error.HTTPError``).
+        OSError: If the request fails (also ``urllib.error.HTTPError``),
+            or the answer isn't valid HTTP (e.g., a bad status line).
         ValueError: If the answer isn't JSON.
     """
     request.add_header("Accept", "application/json")
-    with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-        return json.loads(_read_answer(response))
+    return _parse_json(_open(request))
+
+
+def _parse_json(text: str | bytes) -> Any:
+    """Parse a JSON answer of a TRS or WES.
+
+    Args:
+        text: The answer.
+
+    Returns:
+        The parsed answer.
+
+    Raises:
+        ValueError: If the answer isn't JSON, or is nested too deeply to
+            parse (``json`` raises ``RecursionError`` then, which isn't a
+            ``ValueError``).
+    """
+    try:
+        return json.loads(text)
+    except RecursionError:
+        raise ValueError("The answer is nested too deeply.") from None
+
+
+def _open(request: urllib.request.Request) -> bytes:
+    """Send a request and read the body of the answer.
+
+    Args:
+        request: The request.
+
+    Returns:
+        The body, up to :data:`MAX_ANSWER` bytes.
+
+    Raises:
+        OSError: If the request fails (also ``urllib.error.HTTPError``), or
+            the answer isn't valid HTTP: ``http.client`` raises neither
+            ``OSError`` nor ``ValueError`` then (e.g., ``BadStatusLine``),
+            and its message may quote the answer, so callers handle and
+            redact it like any other failure.
+        ValueError: If the body is larger than :data:`MAX_ANSWER` bytes.
+    """
+    try:
+        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+            return _read_answer(response)
+    except http.client.HTTPException as exc:
+        raise OSError(f"Not a valid HTTP answer: {exc!r}") from None
 
 
 def _read_answer(response: Any) -> bytes:
@@ -560,6 +733,9 @@ class FormHost(ThreadingHTTPServer):
         trs_url: Base URL of the TRS API to pick workflows from, if any;
             their schemas are loaded again for each request, so changes in
             the TRS show at once.
+        wes_token: Bearer token for the WES, if it needs one; sent to the
+            WES only, and redacted from the answers of the WES that the
+            host passes on to the page.
     """
 
     def __init__(
@@ -570,6 +746,7 @@ class FormHost(ThreadingHTTPServer):
         workflow_url: str | None = None,
         wes_url: str | None = None,
         trs_url: str | None = None,
+        wes_token: str | None = None,
     ) -> None:
         """Bind the server.
 
@@ -583,6 +760,7 @@ class FormHost(ThreadingHTTPServer):
             wes_url: Base URL of the WES API to submit runs to; without it,
                 nothing is sent.
             trs_url: Base URL of a TRS API whose workflows users can pick.
+            wes_token: Bearer token for the WES (see :func:`read_token`).
         """
         super().__init__(address, FormHandler)
         self.schema = schema
@@ -590,6 +768,7 @@ class FormHost(ThreadingHTTPServer):
         self.workflow_url = workflow_url
         self.wes_url = wes_url
         self.trs_url = trs_url
+        self.wes_token = wes_token
 
 
 class FormHandler(BaseHTTPRequestHandler):
@@ -603,8 +782,10 @@ class FormHandler(BaseHTTPRequestHandler):
         ``/api/schema`` is the schema: of the workflow picked in the TRS
         with the query ``tool``, ``version`` and ``type``, or else the
         default one. ``/api/config`` says whether runs can be submitted to a
-        WES (``{"wes": true}``) and, with a TRS, lists its ``workflows`` (see
-        :func:`list_workflows`), or gives ``trs_error``.
+        WES (``{"wes": true}``) and whether a token is sent with them
+        (``wes_token``, a boolean, never the token) and, with a TRS, lists
+        its ``workflows`` (see :func:`list_workflows`), or gives
+        ``trs_error``.
         """
         path = urllib.parse.urlsplit(self.path).path
         if path.startswith("/api/") and not self._same_origin():
@@ -684,9 +865,13 @@ class FormHandler(BaseHTTPRequestHandler):
         """Build the configuration for the page.
 
         Returns:
-            Whether a WES is configured and, with a TRS, its workflows.
+            Whether a WES is configured, whether a token is sent to it and,
+            with a TRS, its workflows.
         """
-        config: dict[str, Any] = {"wes": self.server.wes_url is not None}
+        config: dict[str, Any] = {
+            "wes": self.server.wes_url is not None,
+            "wes_token": bool(self.server.wes_url and self.server.wes_token),
+        }
         trs_url = self.server.trs_url
         if trs_url is not None:
             try:
@@ -751,21 +936,31 @@ class FormHandler(BaseHTTPRequestHandler):
     def _submit(self, request: Any) -> None:
         """Submit a run request to the WES, if there is one, and respond.
 
+        What the WES answers (the run id, the state, the reason of a
+        failure) goes to the page with the token redacted, in case the WES
+        quotes it.
+
         Args:
             request: The run request.
         """
         wes_url = self.server.wes_url
+        token = self.server.wes_token
         if wes_url is None:
             error = {"pointer": "", "message": "No WES is configured."}
             self._send_json(HTTPStatus.NOT_FOUND, {"errors": [error]})
             return
         try:
-            run_id, state = submit_run(wes_url, request)
+            run_id, state = submit_run(wes_url, request, token)
         except (OSError, ValueError) as exc:
-            error = {"pointer": "", "message": f"The WES at {wes_url} failed: {exc}"}
+            message = redact(f"The WES at {wes_url} failed: {exc}", token)
+            error = {"pointer": "", "message": message}
             self._send_json(HTTPStatus.BAD_GATEWAY, {"errors": [error]})
             return
-        body = {"run_request": request, "run_id": run_id, "state": state}
+        body = {
+            "run_request": request,
+            "run_id": redact(run_id, token),
+            "state": None if state is None else redact(state, token),
+        }
         self._send_json(HTTPStatus.OK, body)
 
     def _send_json(self, status: HTTPStatus, body: Any) -> None:
@@ -839,6 +1034,13 @@ def _parser() -> argparse.ArgumentParser:
         "http://127.0.0.1:8081/ga4gh/wes/v1 (default, or if empty: none; run "
         "requests are shown, not sent)",
     )
+    # No option for the token itself: arguments show up in process lists
+    parser.epilog = (
+        f"A bearer token for the WES, if it needs one, is read from the "
+        f"environment variable {TOKEN_ENV}, or from the file that "
+        f"{TOKEN_FILE_ENV} names; it is sent to the WES only, over https only "
+        "(or http to localhost)."
+    )
     return parser
 
 
@@ -902,6 +1104,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     forbidden = sorted({scheme.lower() for scheme in schemes} & FORBIDDEN_SCHEMES)
     if forbidden:
         parser.error(f"these schemes can't be allowed: {', '.join(forbidden)}")
+    try:
+        token = read_token(os.environ)
+    except ValueError as exc:
+        parser.error(str(exc))
+    if token and not args.wes_url:
+        print(
+            f"{TOKEN_ENV} or {TOKEN_FILE_ENV} is set, but no WES: the token "
+            "isn't used.",
+            file=sys.stderr,
+        )
+        token = None
+    if token and not _token_allowed(args.wes_url):
+        parser.error(
+            f"the token of {TOKEN_ENV} or {TOKEN_FILE_ENV} is sent over https "
+            "only (or http to localhost): give an https --wes-url"
+        )
     schema = url = None
     if args.schema is not None or args.trs_url is None:
         source = args.schema or str(DEMO_SCHEMA)
@@ -917,7 +1135,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "--trs-url and a schema that names its TRS tool version"
             )
     server = FormHost(
-        (args.host, args.port), schema, schemes, url, args.wes_url, args.trs_url
+        (args.host, args.port),
+        schema,
+        schemes,
+        url,
+        args.wes_url,
+        args.trs_url,
+        token,
     )
     # The bound address, which `server_address` is set to as well; typeshed
     # types `server_address` with bytes, which f-strings would print as b'...'
@@ -930,6 +1154,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"  workflow URL: {url}")
     if args.wes_url:
         print(f"  Run requests are sent to {args.wes_url} on request.")
+        if token:
+            print(f"  ... with an access token from {TOKEN_ENV} or {TOKEN_FILE_ENV}.")
     else:
         print("  No WES configured: run requests are shown, not sent.")
     sys.stdout.flush()

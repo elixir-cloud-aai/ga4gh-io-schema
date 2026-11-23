@@ -20,6 +20,12 @@
 # - TRS_URL: base URL of another TRS API to pick workflows from (default:
 #   the stub). A WES must be able to fetch workflows from it: the stub is
 #   reachable only from the host.
+# - WES_TOKEN, WES_TOKEN_FILE: a bearer token for the WES, or the path of a
+#   file inside the host container that holds one (mount it, e.g., as a
+#   secret in an override file); sent to WES_URL only, over https only,
+#   never to the TRS or the page. Without either, the host sends no
+#   credentials. A token in the environment expires: renew it by hand and
+#   restart. `make demo` clears both, as it clears TRS_URL and WES_URL.
 # - DEMO_UID, DEMO_GID: user and group that the stub runs as (default: the
 #   image's unprivileged user, 65534; `make demo` sets the user running it),
 #   so that it can read examples/ of a checkout that isn't readable by
@@ -75,6 +81,11 @@ services:
       python prototype/host/form_host.py --host 0.0.0.0
       --trs-url ${TRS_URL:-http://trs-stub:8080/ga4gh/trs/v2}
       --wes-url=${WES_URL:-}
+    # Passed through from the environment (empty if unset), never as
+    # arguments, which show up in process lists
+    environment:
+      WES_TOKEN: ${WES_TOKEN:-}
+      WES_TOKEN_FILE: ${WES_TOKEN_FILE:-}
     ports:
       - "127.0.0.1:${DEMO_PORT:-8000}:8000"
     depends_on:
