@@ -40,10 +40,10 @@ define DEMO_URLS
 	@echo "Logs: make demo-logs. Stop: make demo-down."
 endef
 
-# TRS_URL and WES_URL of the shell or of a .env file would point the stack
-# elsewhere: empty values override both, and compose.yaml then uses its
-# defaults
-LOCAL_ONLY = env TRS_URL= WES_URL=
+# TRS_URL, WES_URL and a WES token of the shell or of a .env file would point
+# the stack elsewhere or send credentials: empty values override them, and
+# compose.yaml then uses its defaults
+LOCAL_ONLY = env TRS_URL= WES_URL= WES_TOKEN= WES_TOKEN_FILE=
 
 demo:
 	$(LOCAL_ONLY) $(COMPOSE) up --detach --build --wait

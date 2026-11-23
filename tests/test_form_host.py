@@ -126,6 +126,9 @@ class FakeWes(ThreadingHTTPServer):
             ``GET /runs/{id}/status``.
         fields: The form fields of the last ``POST /runs``.
         paths: The paths of the requests, in order.
+        authorization: The ``Authorization`` headers of the requests, in
+            order (``None`` for requests without one).
+        reason: Reason phrase of the answers, if not the default one.
     """
 
     def __init__(self) -> None:
@@ -139,6 +142,8 @@ class FakeWes(ThreadingHTTPServer):
         )
         self.fields: dict[str, str] = {}
         self.paths: list[str] = []
+        self.authorization: list[str | None] = []
+        self.reason: str | None = None
 
 
 class FakeWesHandler(BaseHTTPRequestHandler):
@@ -149,6 +154,7 @@ class FakeWesHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802 - name defined by http.server
         """Record a run request and answer as configured."""
         self.server.paths.append(self.path)
+        self.server.authorization.append(self.headers.get("Authorization"))
         body = self.rfile.read(int(self.headers["Content-Length"]))
         head = f"Content-Type: {self.headers['Content-Type']}\r\n\r\n".encode()
         message = email.parser.BytesParser(policy=email.policy.HTTP).parsebytes(
@@ -165,6 +171,7 @@ class FakeWesHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - name defined by http.server
         """Answer with the state of the run, as configured."""
         self.server.paths.append(self.path)
+        self.server.authorization.append(self.headers.get("Authorization"))
         self._answer(*self.server.status_answer)
 
     def _answer(self, status: int, data: bytes) -> None:
@@ -174,11 +181,22 @@ class FakeWesHandler(BaseHTTPRequestHandler):
             status: HTTP status.
             data: The body.
         """
-        self.send_response(status)
+        self.send_response(status, self.server.reason)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
         self.wfile.write(data)
+
+
+@pytest.fixture(autouse=True)
+def no_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Clear the token variables of the environment that runs the tests.
+
+    Args:
+        monkeypatch: Pytest's monkeypatch fixture.
+    """
+    monkeypatch.delenv(form_host.TOKEN_ENV, raising=False)
+    monkeypatch.delenv(form_host.TOKEN_FILE_ENV, raising=False)
 
 
 @pytest.fixture
@@ -630,7 +648,7 @@ def test_host_returns_the_run_request(host: str) -> None:
 def test_host_without_wes_sends_nothing(host: str) -> None:
     """Test that without a WES the page offers no submission, and none is made."""
     status, _, response = _request(f"{host}/api/config")
-    assert (status, json.loads(response)) == (200, {"wes": False})
+    assert (status, json.loads(response)) == (200, {"wes": False, "wes_token": False})
     body = json.dumps(DEMO_VALUES).encode()
     status, _, response = _request(f"{host}/api/runs", body, "POST")
     assert status == 404
@@ -643,7 +661,7 @@ def test_host_submits_to_the_wes(wes: FakeWes) -> None:
     """Test that with a WES the request is posted there, as WES form fields."""
     with serve(DEMO_SCHEMA, workflow_url="demo.wdl", wes_url=f"{wes.url}/") as host:
         status, _, response = _request(f"{host}/api/config")
-        assert json.loads(response) == {"wes": True}
+        assert json.loads(response) == {"wes": True, "wes_token": False}
         body = json.dumps(DEMO_VALUES).encode()
         status, _, response = _request(f"{host}/api/runs", body, "POST")
     assert status == 200
@@ -1294,7 +1312,11 @@ def test_host_picks_a_workflow_from_trs(trs: str) -> None:
     """Test the path of the prototype: pick in TRS, fill in, get the request."""
     with serve(None, ["https", "s3"], trs_url=trs) as host:
         status, _, response = _request(f"{host}/api/config")
-        assert json.loads(response) == {"wes": False, "workflows": [DEMO_ENTRY]}
+        assert json.loads(response) == {
+            "wes": False,
+            "wes_token": False,
+            "workflows": [DEMO_ENTRY],
+        }
         status, _, response = _request(f"{host}/api/schema")
         assert status == 404
         assert "Pick a workflow" in json.loads(response)["errors"][0]["message"]
@@ -1370,7 +1392,7 @@ def test_host_answers_api_reads_for_its_own_pages_only(host: str) -> None:
 def test_host_without_trs_has_no_picker(host: str) -> None:
     """Test that without a TRS the page gets no list and the query is ignored."""
     status, _, response = _request(f"{host}/api/config")
-    assert json.loads(response) == {"wes": False}
+    assert json.loads(response) == {"wes": False, "wes_token": False}
     status, _, response = _request(f"{host}/api/schema?{DEMO_PICK}")
     assert (status, json.loads(response)) == (200, DEMO_SCHEMA)
 
@@ -1390,3 +1412,189 @@ def test_main_with_trs_needs_no_schema(
     assert form_host.main([*argv, "--wes-url", "http://wes/ga4gh/wes/v1"]) == 0
     out = capsys.readouterr().out
     assert "Workflows are picked from http://trs/ga4gh/trs/v2" in out
+
+
+# A bearer token as RFC 6750 allows it (b64token), and one that the fake
+# WES echoes in its answers
+TOKEN = "eyJhbGciOi.J-_~+/token="
+
+
+def test_read_token_from_the_environment(tmp_path: Path) -> None:
+    """Test that the token comes from WES_TOKEN or the file of WES_TOKEN_FILE."""
+    assert form_host.read_token({}) is None
+    assert form_host.read_token({"WES_TOKEN": "", "WES_TOKEN_FILE": ""}) is None
+    assert form_host.read_token({"WES_TOKEN": TOKEN}) == TOKEN
+    secret = tmp_path / "token"
+    # A mounted secret often ends with a line break
+    secret.write_text(f"{TOKEN}\n", encoding="utf-8")
+    assert form_host.read_token({"WES_TOKEN_FILE": str(secret)}) == TOKEN
+
+
+@pytest.mark.parametrize(
+    ("environ", "message"),
+    [
+        ({"WES_TOKEN": TOKEN, "WES_TOKEN_FILE": "token"}, "not both"),
+        ({"WES_TOKEN_FILE": "missing"}, "Can't read the file of WES_TOKEN_FILE"),
+        ({"WES_TOKEN_FILE": "empty"}, "The file of WES_TOKEN_FILE is empty"),
+        ({"WES_TOKEN_FILE": "binary"}, "not UTF-8"),
+        ({"WES_TOKEN": f"{TOKEN}\r\nX-Injected: 1"}, "isn't a bearer token"),
+        ({"WES_TOKEN": "a token"}, "isn't a bearer token"),
+        ({"WES_TOKEN": "=abc"}, "isn't a bearer token"),
+    ],
+)
+def test_read_token_rejects_bad_settings(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    environ: dict[str, str],
+    message: str,
+) -> None:
+    """Test that unusable token settings are errors that don't show the token."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "token").write_text(TOKEN, encoding="utf-8")
+    (tmp_path / "empty").write_text("\n", encoding="utf-8")
+    (tmp_path / "binary").write_bytes(b"\xff\xfe")
+    with pytest.raises(ValueError, match=message) as exc:
+        form_host.read_token(environ)
+    assert TOKEN not in str(exc.value)
+    assert "token\r\n" not in str(exc.value)
+
+
+def test_host_sends_the_token_to_the_wes_only(
+    wes: FakeWes, trs: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that the token goes to the WES, as a bearer token, and nowhere else."""
+    sent: list[tuple[str, str | None]] = []
+    urlopen = urllib.request.urlopen
+
+    def record(request: Any, *args: Any, **kwargs: Any) -> Any:
+        if isinstance(request, urllib.request.Request):
+            sent.append((request.full_url, request.get_header("Authorization")))
+        return urlopen(request, *args, **kwargs)
+
+    monkeypatch.setattr(urllib.request, "urlopen", record)
+    with serve(
+        None, ["https", "s3"], trs_url=trs, wes_url=wes.url, wes_token=TOKEN
+    ) as host:
+        status, _, response = _request(f"{host}/api/config")
+        assert json.loads(response) == {
+            "wes": True,
+            "wes_token": True,
+            "workflows": [DEMO_ENTRY],
+        }
+        body = json.dumps(DEMO_VALUES).encode()
+        status, _, response = _request(f"{host}/api/runs?{DEMO_PICK}", body, "POST")
+    assert status == 200
+    assert json.loads(response)["run_id"] == "run-1"
+    assert wes.authorization == [f"Bearer {TOKEN}", f"Bearer {TOKEN}"]
+    to_trs = [header for url, header in sent if url.startswith(trs)]
+    assert to_trs
+    assert to_trs == [None] * len(to_trs)
+    to_wes = [header for url, header in sent if url.startswith(wes.url)]
+    assert to_wes == [f"Bearer {TOKEN}", f"Bearer {TOKEN}"]
+
+
+def test_host_without_token_sends_no_authorization(wes: FakeWes) -> None:
+    """Test that without a token, runs are submitted without credentials."""
+    with serve(DEMO_SCHEMA, workflow_url="demo.wdl", wes_url=wes.url) as host:
+        body = json.dumps(DEMO_VALUES).encode()
+        assert _request(f"{host}/api/runs", body, "POST")[0] == 200
+    assert wes.authorization == [None, None]
+
+
+@pytest.mark.parametrize(
+    ("run_answer", "status_answer", "reason"),
+    [
+        # The WES quotes the token in its reason phrase
+        ((401, b"{}"), (200, b"{}"), f"bad token {TOKEN}"),
+        # ... or in the run id and the state
+        (
+            (200, json.dumps({"run_id": TOKEN}).encode()),
+            (200, json.dumps({"state": f"QUEUED {TOKEN}"}).encode()),
+            None,
+        ),
+    ],
+)
+def test_token_never_reaches_the_page(
+    wes: FakeWes,
+    capsys: pytest.CaptureFixture[str],
+    run_answer: tuple[int, bytes],
+    status_answer: tuple[int, bytes],
+    reason: str | None,
+) -> None:
+    """Test that the host's answers and output never contain the token."""
+    wes.run_answer = run_answer
+    wes.status_answer = status_answer
+    wes.reason = reason
+    with serve(
+        DEMO_SCHEMA, workflow_url="demo.wdl", wes_url=wes.url, wes_token=TOKEN
+    ) as host:
+        answers = [
+            _request(f"{host}{path}")[2]
+            for path in ("/", "/app.js", "/api/config", "/api/schema")
+        ]
+        body = json.dumps(DEMO_VALUES).encode()
+        answers.append(_request(f"{host}/api/params", body, "POST")[2])
+        answers.append(_request(f"{host}/api/runs", body, "POST")[2])
+    assert wes.authorization[0] == f"Bearer {TOKEN}"
+    assert b"[redacted]" in answers[-1]
+    for answer in answers:
+        assert TOKEN.encode() not in answer
+    output = capsys.readouterr()
+    assert TOKEN not in output.out + output.err
+
+
+def test_submit_refuses_to_send_the_token_over_http() -> None:
+    """Test that the token goes over https, or http to a loopback host only."""
+    with pytest.raises(ValueError, match="over http") as exc:
+        form_host.submit_run("http://wes.example/ga4gh/wes/v1", DEMO_REQUEST, TOKEN)
+    assert TOKEN not in str(exc.value)
+
+
+def test_main_takes_the_token_from_the_environment(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Test that ``main`` passes the token to the host, and never prints it."""
+    tokens: list[str | None] = []
+
+    def interrupt(self: form_host.FormHost) -> None:
+        tokens.append(self.wes_token)
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(form_host.FormHost, "serve_forever", interrupt)
+    monkeypatch.setenv("WES_TOKEN", TOKEN)
+    argv = ["--port", "0", "--trs-url", "http://trs/ga4gh/trs/v2"]
+    for wes_url in ("https://wes.example/ga4gh/wes/v1", "http://[::1]:8081/wes"):
+        assert form_host.main([*argv, "--wes-url", wes_url]) == 0
+    output = capsys.readouterr()
+    assert "with an access token from WES_TOKEN or WES_TOKEN_FILE" in output.out
+    assert TOKEN not in output.out + output.err
+    # Without a WES, the token isn't used
+    assert form_host.main(argv) == 0
+    output = capsys.readouterr()
+    assert "WES_TOKEN or WES_TOKEN_FILE is set, but no WES" in output.err
+    assert tokens == [TOKEN, TOKEN, None]
+
+
+@pytest.mark.parametrize(
+    ("environ", "message"),
+    [
+        ({"WES_TOKEN": TOKEN}, "over https only"),
+        ({"WES_TOKEN": "a token"}, "isn't a bearer token"),
+    ],
+)
+def test_main_rejects_unusable_tokens(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    environ: dict[str, str],
+    message: str,
+) -> None:
+    """Test that a bad token, or one for a WES over plain http, is refused."""
+    for name, value in environ.items():
+        monkeypatch.setenv(name, value)
+    argv = ["--trs-url", "http://trs/ga4gh/trs/v2"]
+    with pytest.raises(SystemExit) as exc:
+        form_host.main([*argv, "--wes-url", "http://wes.example/ga4gh/wes/v1"])
+    assert exc.value.code == 2
+    err = capsys.readouterr().err
+    assert message in err
+    assert TOKEN not in err

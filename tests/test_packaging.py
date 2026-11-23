@@ -716,6 +716,35 @@ def test_prototype_stub_runs_as_the_user_of_make() -> None:
     assert re.search(r"^export .*\bDEMO_UID DEMO_GID\b", makefile, re.M)
 
 
+def test_prototype_passes_the_wes_token_but_make_demo_clears_it() -> None:
+    """Test that the stack passes a WES token to the host, and ``make demo`` not.
+
+    The token goes into the host's environment, never into its arguments,
+    which show up in process lists (#151); ``make demo`` clears it, as it
+    clears ``TRS_URL`` and ``WES_URL``, so that the local demo sends nothing.
+    """
+    compose = yaml.safe_load(
+        (REPO_ROOT / "prototype" / "compose.yaml").read_text("utf-8")
+    )
+    makefile = (REPO_ROOT / "Makefile").read_text("utf-8")
+
+    host = compose["services"]["host"]
+    assert host["environment"] == {
+        "WES_TOKEN": "${WES_TOKEN:-}",
+        "WES_TOKEN_FILE": "${WES_TOKEN_FILE:-}",
+    }
+    assert "WES_TOKEN" not in host["command"]
+    local_only = re.search(r"^LOCAL_ONLY = (.*)$", makefile, re.M)
+    assert local_only is not None
+    assert set(local_only.group(1).split()) == {
+        "env",
+        "TRS_URL=",
+        "WES_URL=",
+        "WES_TOKEN=",
+        "WES_TOKEN_FILE=",
+    }
+
+
 def test_read_the_docs_installs_the_lock() -> None:
     """Test that Read the Docs builds with the versions of ``uv.lock``.
 
