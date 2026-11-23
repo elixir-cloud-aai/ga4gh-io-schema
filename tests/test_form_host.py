@@ -1731,3 +1731,32 @@ def test_bad_http_from_the_trs_is_an_os_error(
         form_host.list_workflows("http://trs.invalid/ga4gh/trs/v2")
     with pytest.raises(OSError, match="Not a valid HTTP answer"):
         form_host.load_schema("http://trs.invalid/schema.json")
+
+
+DEEP = b"[" * 200_000
+
+
+def test_deeply_nested_answers_of_the_wes_are_errors(wes: FakeWes) -> None:
+    """Test that answers nested too deeply for ``json`` are reported as failures."""
+    wes.status_answer = (200, DEEP)
+    with serve(DEMO_SCHEMA, workflow_url="demo.wdl", wes_url=wes.url) as host:
+        body = json.dumps(DEMO_VALUES).encode()
+        status, _, response = _request(f"{host}/api/runs", body, "POST")
+        # The run exists: its id is shown, without state
+        assert status == 200
+        assert json.loads(response)["state"] is None
+        wes.run_answer = (200, DEEP)
+        status, _, response = _request(f"{host}/api/runs", body, "POST")
+    assert status == 502
+    message = json.loads(response)["errors"][0]["message"]
+    assert message.endswith("The answer is nested too deeply.")
+
+
+def test_deeply_nested_schemas_from_urls_are_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that a schema or FileWrapper nested too deeply is a ValueError."""
+    for answer in (DEEP, json.dumps({"content": DEEP.decode()}).encode()):
+        monkeypatch.setattr(form_host, "_open", lambda *a, answer=answer: answer)
+        with pytest.raises(ValueError, match="nested too deeply"):
+            form_host.load_schema("http://trs.invalid/schema.json")

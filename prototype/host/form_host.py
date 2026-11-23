@@ -207,12 +207,12 @@ def load_schema(source: str) -> dict[str, Any]:
     """
     if source.startswith(("http://", "https://")):
         request = urllib.request.Request(source, headers={"Accept": "application/json"})
-        document = json.loads(_open(request))
+        document = _parse_json(_open(request))
         if isinstance(document, dict) and "$schema" not in document:
             content = document.get("content")
             if not isinstance(content, str):
                 raise ValueError("The response is no IO schema and no FileWrapper.")
-            document = json.loads(content)
+            document = _parse_json(content)
     else:
         document = json.loads(Path(source).read_text(encoding="utf-8"))
     validate_schema(document)
@@ -499,7 +499,27 @@ def _fetch_json(request: urllib.request.Request) -> Any:
         ValueError: If the answer isn't JSON.
     """
     request.add_header("Accept", "application/json")
-    return json.loads(_open(request))
+    return _parse_json(_open(request))
+
+
+def _parse_json(text: str | bytes) -> Any:
+    """Parse a JSON answer of a TRS or WES.
+
+    Args:
+        text: The answer.
+
+    Returns:
+        The parsed answer.
+
+    Raises:
+        ValueError: If the answer isn't JSON, or is nested too deeply to
+            parse (``json`` raises ``RecursionError`` then, which isn't a
+            ``ValueError``).
+    """
+    try:
+        return json.loads(text)
+    except RecursionError:
+        raise ValueError("The answer is nested too deeply.") from None
 
 
 def _open(request: urllib.request.Request) -> bytes:
