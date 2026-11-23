@@ -145,12 +145,22 @@ def test_user_gets_the_run_request_of_a_workflow_from_trs() -> None:
     assert status == 404
 
 
-def test_user_gets_the_run_request_in_the_browser() -> None:
-    """Test the same path in a browser: the page, the picker and the form."""
+def _sync_api() -> Any:
+    """Import Playwright's sync API, or skip the test without it.
+
+    Returns:
+        The module ``playwright.sync_api``.
+    """
     if os.environ.get("PROTOTYPE_REQUIRE_BROWSER"):
         import playwright.sync_api as sync_api
-    else:
-        sync_api = pytest.importorskip("playwright.sync_api")
+
+        return sync_api
+    return pytest.importorskip("playwright.sync_api")
+
+
+def test_user_gets_the_run_request_in_the_browser() -> None:
+    """Test the same path in a browser: the page, the picker and the form."""
+    sync_api = _sync_api()
     channel = os.environ.get("PROTOTYPE_BROWSER_CHANNEL")
     with sync_api.sync_playwright() as playwright:
         browser = playwright.chromium.launch(channel=channel)
@@ -175,6 +185,82 @@ def test_user_gets_the_run_request_in_the_browser() -> None:
         finally:
             browser.close()
     assert request == RUN_REQUEST
+
+
+def test_user_switches_between_inputs_and_outputs() -> None:
+    """Test the tabs: mouse, keys, the URL fragment and a picked workflow."""
+    sync_api = _sync_api()
+    channel = os.environ.get("PROTOTYPE_BROWSER_CHANNEL")
+    with sync_api.sync_playwright() as playwright:
+        browser = playwright.chromium.launch(channel=channel)
+        try:
+            page = browser.new_page(viewport={"width": 360, "height": 640})
+            page.goto(f"{HOST}/{PICK}")
+            page.wait_for_selector("#title:has-text('I/O Schema demo')")
+            inputs = page.get_by_role("tab", name="Inputs")
+            outputs = page.get_by_role("tab", name="Outputs")
+            # The Inputs tab is open, as the page was before the tabs, and
+            # fits a narrow screen without scrolling sideways
+            assert inputs.get_attribute("aria-selected") == "true"
+            assert page.locator("#panel-inputs").is_visible()
+            assert page.locator("#panel-outputs").is_hidden()
+            assert page.evaluate("document.documentElement.scrollWidth") <= 360
+            # With a form, the panel itself is no stop of the tab order
+            assert page.locator("#panel-inputs").get_attribute("tabindex") is None
+            # The banner shows on both tabs
+            assert page.locator(".poc").is_visible()
+            # The open tab has a bar of its own, not only another colour
+            bar = "e => getComputedStyle(e).borderBottomColor"
+            assert inputs.evaluate(bar) != outputs.evaluate(bar)
+            # Mouse: the fragment keeps the tab, the query the workflow
+            outputs.click()
+            assert outputs.get_attribute("aria-selected") == "true"
+            assert page.locator("#panel-inputs").is_hidden()
+            assert page.get_by_text("mock data").is_visible()
+            assert page.locator(".poc").is_visible()
+            assert page.evaluate("document.documentElement.scrollWidth") <= 360
+            assert page.url == f"{HOST}/{PICK}#outputs"
+            # A reload keeps the open tab and the workflow
+            page.reload()
+            page.wait_for_selector(
+                "#title:has-text('I/O Schema demo')", state="attached"
+            )
+            assert outputs.get_attribute("aria-selected") == "true"
+            assert page.locator("#panel-outputs").is_visible()
+            # Keys: the arrows move and open, only the open tab is focusable
+            outputs.focus()
+            page.keyboard.press("ArrowRight")
+            assert inputs.get_attribute("aria-selected") == "true"
+            assert page.locator("#panel-inputs").is_visible()
+            assert page.locator("#panel-outputs").is_hidden()
+            assert page.evaluate("document.activeElement.dataset.tab") == "inputs"
+            assert outputs.get_attribute("tabindex") == "-1"
+            assert page.url == f"{HOST}/{PICK}"
+            page.keyboard.press("End")
+            assert outputs.get_attribute("aria-selected") == "true"
+            assert page.locator("#panel-outputs").is_visible()
+            assert page.locator("#panel-inputs").is_hidden()
+            page.keyboard.press("Home")
+            assert inputs.get_attribute("aria-selected") == "true"
+            # With a modifier, the keys are the browser's
+            page.keyboard.press("Shift+ArrowRight")
+            assert inputs.get_attribute("aria-selected") == "true"
+            # A link to the other tab (the fragment changes, no reload)
+            page.evaluate("location.hash = '#outputs'")
+            page.wait_for_selector("#panel-outputs:not([hidden])")
+            # Back to the URL before the link: the Inputs tab
+            page.go_back()
+            page.wait_for_selector("#panel-inputs:not([hidden])")
+            assert outputs.get_attribute("aria-selected") == "false"
+            page.go_forward()
+            page.wait_for_selector("#panel-outputs:not([hidden])")
+            # Picking another workflow keeps the open tab
+            page.select_option("#workflow", label="Greetings 1.0.0 (NFL)")
+            page.wait_for_url(lambda url: "#outputs" in url and PICK not in url)
+            page.wait_for_selector("#title:has-text('Greetings')", state="attached")
+            assert outputs.get_attribute("aria-selected") == "true"
+        finally:
+            browser.close()
 
 
 def pick(schema: dict[str, Any]) -> str:

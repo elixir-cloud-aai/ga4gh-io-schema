@@ -532,7 +532,13 @@ def test_host_serves_the_form(host: str) -> None:
     assert headers["Content-Security-Policy"] == "default-src 'self'"
     assert headers["X-Content-Type-Options"] == "nosniff"
     assert b"<io-schema-form>" in body
-    for path in ("/app.js", "/form.js", "/io-schema-form.js", "/form.css"):
+    for path in (
+        "/app.js",
+        "/form.js",
+        "/io-schema-form.js",
+        "/tabs.js",
+        "/form.css",
+    ):
         status, _, body = _request(f"{host}{path}")
         assert status == 200
         assert body
@@ -564,6 +570,9 @@ CONTRAST_PAIRS = [
     ("ring", "bg", 3),
     ("masthead-ring", "masthead-bg", 3),
     ("warning", "warning-bg", 3),
+    # The tabs: the open one in `fg` and the others in `muted-fg` (above),
+    # both on `bg`; the bar under the open one in `primary`
+    ("primary", "bg", 3),
 ]
 
 

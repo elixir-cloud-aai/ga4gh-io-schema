@@ -67,6 +67,7 @@ STATIC = {
     "/form.css": ("form.css", "text/css; charset=utf-8"),
     "/form.js": ("form.js", "text/javascript; charset=utf-8"),
     "/io-schema-form.js": ("io-schema-form.js", "text/javascript; charset=utf-8"),
+    "/tabs.js": ("tabs.js", "text/javascript; charset=utf-8"),
 }
 #: Largest request body that the host reads, in bytes.
 MAX_BODY = 1024 * 1024
