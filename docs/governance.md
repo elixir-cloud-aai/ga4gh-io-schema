@@ -22,13 +22,13 @@ version covers the normative text (see
 meta-schema and vocabularies in `schemas/`, and the
 [conformance suite](specification/conformance.md#conformance-suite).
 
-!!! note "Until the first release"
-    There are no releases yet (see [Releases](#releases)). Until the first
-    one, the `$id` of the meta-schema names the `main` branch, so `$schema`
-    doesn't tell versions apart, and breaking changes on `main` keep it as
-    it is. Pin a commit to fix the version that you use (see [Schema
+!!! note "Until there is a stable identifier"
+    The `$id` of the meta-schema names the `main` branch (see
+    [Releases](#releases)), so `$schema` doesn't tell versions apart, and
+    breaking changes on `main` keep it as it is. Pin a commit to fix the
+    version that you use (see [Schema
     identifiers](development.md#schema-identifiers)). The rules below apply
-    from the first release on.
+    once the `$id`s name versions.
 
 Each release has a meta-schema of its own, with the release in its `$id`,
 and a schema document names the release that it targets in `$schema`. To
@@ -68,23 +68,22 @@ conformance suite for existing rules.
 
 ## Releases
 
-- There are no releases yet: versions 0.1.0 to 0.3.0 have no tags (see
-  [Changelog](changelog.md)). Releases, as Git tags `vMAJOR.MINOR.PATCH`,
-  come with the move of the repository to GA4GH.
-- Until then, the `$id`s of the meta-schema and vocabularies name the
-  `main` branch of the repository, which holds the latest reviewed state
-  (they resolve once version 0.3.0 is merged into `main` at
-  elixir-cloud-aai). To use fixed content, pin a commit SHA (see [Schema
+- A version is released at the commit that first declares it; the
+  [changelog](changelog.md) gives that commit and its date for each
+  version (0.1.0 to 0.3.0). Versions have no Git tags.
+- The `$id`s of the meta-schema and vocabularies name the `main` branch of
+  the repository, which holds the latest reviewed state. To use fixed
+  content, pin a commit SHA (see [Schema
   identifiers](development.md#schema-identifiers)). A stable identifier for
-  released versions follows with the first release.
+  released versions follows
+  ([#26](https://github.com/elixir-cloud-aai/ga4gh-io-schema/issues/26)).
 - The Python package `ga4gh-io-schema` isn't published on PyPI; install it
   from the repository, at a commit (see
   [Installation](tools/validator.md#installation)).
 - The version of the package is the version of the proposal (`version` in
   `pyproject.toml` is the latest version of the [document
   history](roadmap.md#document-history), e.g., `0.3.0`, or a development
-  version of the next one, e.g., `0.3.1.dev0`, for work after it). It is
-  not a release either: versions 0.1.0 to 0.3.0 have no tags.
+  version of the next one, e.g., `0.3.1.dev0`, for work after it).
 
 ## Licences
 

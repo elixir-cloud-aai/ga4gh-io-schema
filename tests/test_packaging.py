@@ -26,7 +26,8 @@ SUITE_DIR = REPO_ROOT / "tests" / "conformance"
 VECTORS_DIR = REPO_ROOT / "tests" / "vectors"
 EXAMPLES_DIR = REPO_ROOT / "examples"
 PROFILE_PATH = SCHEMAS_DIR / "ga4gh-io-profile.schema.json"
-# Base of the schema `$id`s until there are releases (see docs/development.md).
+# Base of the schema `$id`s until there is a stable identifier (see
+# docs/development.md).
 SCHEMA_BASE = (
     "https://raw.githubusercontent.com/elixir-cloud-aai/ga4gh-io-schema/main/schemas/"
 )
@@ -186,8 +187,8 @@ def test_no_links_to_the_former_repository() -> None:
 def test_schema_urls_use_the_schema_base() -> None:
     """Test that all schema URLs use the same base, ``SCHEMA_BASE``.
 
-    There are no releases before the repository moves to GA4GH, so the
-    ``$id``s name ``main``, the latest reviewed state (see "Schema
+    The schemas have no stable identifier yet, so the ``$id``s name
+    ``main``, the latest reviewed state (see "Schema
     identifiers" in ``docs/development.md``). URLs with placeholders (e.g.,
     ``<owner>``, ``<sha>``, or ``$1`` in a rewrite rule) in the
     documentation are left out.
@@ -329,8 +330,7 @@ def test_package_version_is_the_proposal_version() -> None:
     """Test that the package version is the version of the proposal.
 
     The package version follows the document history of the roadmap (see
-    ``version_matches_history``), so that the two can't drift apart. Neither
-    is a release: versions 0.1.0 to 0.3.0 have no tags.
+    ``version_matches_history``), so that the two can't drift apart.
     """
     pyproject = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text("utf-8"))
     roadmap = (REPO_ROOT / "docs" / "roadmap.md").read_text("utf-8")

@@ -3,11 +3,10 @@
 --8<-- "README.md:synopsis"
 
 !!! info "Status"
-    This is version 0.3.0 of a proposal, not a GA4GH standard: it has no
-    releases, and it waits for review by the GA4GH Federated Analysis Work
-    Stream (see [Roadmap](roadmap.md#next-steps)). Try it with the
-    [live demo](adoption/testbed.md), one command (`make demo`) on a
-    laptop.
+    This is version 0.3.0 of a proposal, not a GA4GH standard, and it waits
+    for review by the GA4GH Federated Analysis Work Stream (see
+    [Roadmap](roadmap.md#next-steps)). Try it with the [live
+    demo](adoption/testbed.md), one command (`make demo`) on a laptop.
 
 ## Executive summary
 

@@ -104,4 +104,4 @@ of the repository lists each removal as a breaking change.
 | ----- | ----- | ----- | ----- |
 | **0.1.0** | 2026-10-10 | Alexander Kanitz | Initial Draft: Ecosystem survey, evaluation, and GA4GH JSON Schema Profile proposal. |
 | **0.2.0** | 2026-10-13 | Alexander Kanitz | Major rewrite addressing architectural reviews. Reframed standard as a universal Interface Definition Language (IDL). Explicitly scoped out bare TES execution. Clarified tabular data sovereignty. Mapped custom properties to `nf-schema`. Expanded GA4GH API lifecycle and RO-Crate Profiles integration. |
-| **0.3.0** | not released (no tag) | Alexander Kanitz | Response to an external review: structured documentation, conformance classes with RFC 2119 terms and a conformance suite, security considerations, and the changes of scope listed in the [Changelog](changelog.md). |
+| **0.3.0** | 2026-11-18 | Alexander Kanitz | Response to an external review: structured documentation, conformance classes with RFC 2119 terms and a conformance suite, security considerations, and the changes of scope listed in the [Changelog](changelog.md). |

@@ -10,12 +10,10 @@ The goal of the profile is a GA4GH product. This page records where the
 profile stands on the way there and proposals for its naming, approval and
 identifiers. GA4GH decides on them, and none of them is agreed yet.
 
-The profile has no tags or releases. The repository moved from
-`uniqueg/ga4gh-io-schema` to `elixir-cloud-aai/ga4gh-io-schema`
-([#25](https://github.com/elixir-cloud-aai/ga4gh-io-schema/issues/25)); a
-move to the `ga4gh` organisation would follow GA4GH's acceptance. The
-licences stay as they are (see
-[Licences](governance.md#licences)).
+The repository moved from `uniqueg/ga4gh-io-schema` to
+`elixir-cloud-aai/ga4gh-io-schema`
+([#25](https://github.com/elixir-cloud-aai/ga4gh-io-schema/issues/25)). The
+licences stay as they are (see [Licences](governance.md#licences)).
 
 ## Naming
 
@@ -33,15 +31,10 @@ name no organisation other than GA4GH:
 The copyright notices, `SPDX-PackageSupplier` in `REUSE.toml`, the
 maintainer in the README and the URLs (the repository, the documentation's
 `repo_url` and the `$id`s of the schemas, see [Identifiers](#identifiers))
-name the current host. They change with a transfer, not before.
+name elixir-cloud-aai, the host of the repository.
 
 **Proposal.**
 
-- **Repository:** `ga4gh/io-schema`. GA4GH names product repositories after
-  the product, without the `ga4gh-` prefix that the organisation already
-  gives (e.g., `ga4gh/vrs`, `ga4gh/va-spec`, `ga4gh/refget`). API
-  specifications use `*-schemas` (e.g., `ga4gh/workflow-execution-service-schemas`),
-  but the profile isn't an API.
 - **Product name:** "GA4GH IO Schema" once GA4GH approves it. Until then,
   the docs keep saying that it is a proposal and not a GA4GH standard (see
   [Versioning and governance](governance.md#status)). One question for the
@@ -52,7 +45,7 @@ name the current host. They change with a transfer, not before.
   different name requested by GA4GH costs little now.
 - **Schema titles:** keep the `GA4GH IO Profile …` titles; rename "GA4GH UI
   Widgets Vocabulary" to "GA4GH IO Profile UI Widget Keywords" to match the
-  others, with the first release. Titles aren't part of the profile's
+  others, with the next version. Titles aren't part of the profile's
   rules, so the rename isn't breaking.
 
 ## Approval
@@ -100,10 +93,9 @@ name the current host. They change with a transfer, not before.
   ([#78](https://github.com/elixir-cloud-aai/ga4gh-io-schema/pull/78)).
 
 This form binds the identifier to a host organisation and a repository
-name, so each transfer changes it, and its content changes over time. That
-is acceptable while there are no releases. It must end with the first
-release, which needs `$id`s that keep naming the same content (see
-[Releases](governance.md#releases)).
+name, and its content changes over time, so `$schema` doesn't tell
+versions apart. Versioned `$id`s that keep naming the same content are to
+replace it (see [Releases](governance.md#releases)).
 
 **Proposal: a w3id.org redirect in the GA4GH namespace.**
 
@@ -120,14 +112,16 @@ would become:
 https://w3id.org/ga4gh/schema/io-schema/{ref}/{path under schemas/}
 ```
 
-For example, for a first release 0.4.0:
+For example, for version 0.4.0:
 
 ```text
 https://w3id.org/ga4gh/schema/io-schema/v0.4.0/ga4gh-io-profile.schema.json
 https://w3id.org/ga4gh/schema/io-schema/v0.4.0/vocabularies/file.schema.json
 ```
 
-`{ref}` is a tag of a release, or `main` for the schemas under development.
+`{ref}` is the Git tag of a version, or `main` for the schemas under
+development. Versions 0.1.0 to 0.3.0 have no tags, so the first version
+with w3id `$id`s needs one for the redirect to resolve.
 The `$id`s of embedded resources follow the same pattern, e.g.,
 `…/v0.4.0/ga4gh-io-profile-node`.
 
@@ -137,13 +131,6 @@ the current home of the repository:
 ```apache
 # IO Schema (Federated Analysis Work Stream), schema $ids
 RewriteRule ^schema/io-schema/([^/]+)/(.+)$ https://raw.githubusercontent.com/elixir-cloud-aai/ga4gh-io-schema/$1/schemas/$2 [R=302,L]
-```
-
-After a transfer, the target changes to `ga4gh/io-schema`, and no `$id`
-changes:
-
-```apache
-RewriteRule ^schema/io-schema/([^/]+)/(.+)$ https://raw.githubusercontent.com/ga4gh/io-schema/$1/schemas/$2 [R=302,L]
 ```
 
 The redirect is temporary (`302`), unlike the `301` of the GKS rules, so
@@ -158,12 +145,8 @@ GitHub Pages site with JSON media types.
    done without them.
 2. **Submit the rule:** a pull request to `perma-id/w3id.org` adds the rule
    above, with GA4GH's agreement.
-3. **Change the `$id`s:** the first release of the profile (the first one
-   with tags) uses the w3id `$id`s and is tested through the redirect.
-4. **Transfer:** after a transfer to `ga4gh`, a second pull request changes
-   the rule's target. The `$id`s stay the same.
+3. **Change the `$id`s:** the next version of the profile uses the w3id
+   `$id`s and is tested through the redirect.
 
-**Old URLs.** After a transfer, GitHub redirects the old repository URLs,
-raw file URLs included, as long as no new repository takes the old name.
-Validators shouldn't fetch the meta-schema at all: the `ga4gh-io-schema`
+**Fetching.** Validators shouldn't fetch the meta-schema at all: the `ga4gh-io-schema`
 package bundles the schemas and resolves them by `$id`.

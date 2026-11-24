@@ -31,8 +31,8 @@ The [validator](../tools/validator.md) checks schemas against them.
 ## Referencing the meta-schema
 
 Inside your own drafted schemas, you can reference the meta-schema directly to
-enable IDE autocompletion and validation. The profile has no releases yet, so
-the identifier names the `main` branch, whose content changes; to work against
+enable IDE autocompletion and validation. The profile has no stable
+identifier yet, so the identifier names the `main` branch, whose content changes; to work against
 fixed content, fetch the meta-schema from a commit (see [Schema
 identifiers](../development.md#schema-identifiers)), but keep `$schema` as in
 the example. Replace the `$id` of the example with an identifier of your own.

@@ -35,11 +35,9 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `examples/` of the checkout (without `make`, set `DEMO_UID` and
   `DEMO_GID`). (#146)
 
-## 0.3.0 (not released, no tag)
+## 0.3.0
 
-Version 0.3.0 of the profile; not released (no tag). Releases come with the
-move of the repository to GA4GH; until then, pin a commit SHA (see
-[Development](https://ga4gh-io-schema.readthedocs.io/en/latest/development/#schema-identifiers)).
+2026-11-18 · [`29784f4`](https://github.com/elixir-cloud-aai/ga4gh-io-schema/commit/29784f4ce75398a8ce5a5a4a139b5c2945fc6848)
 
 ### Breaking changes
 
@@ -165,8 +163,8 @@ move of the repository to GA4GH; until then, pin a commit SHA (see
   page, the runsheet, is the script for presenting the demo in about ten
   minutes, with fallbacks. (#130)
 - The status of the proposal on the first screen: a "Status" section in the
-  README (version 0.3.0, not a GA4GH standard, no releases; the prototype
-  in one command, the testbed and the evaluation) with CI and docs badges,
+  README (version 0.3.0, not a GA4GH standard; the prototype in one
+  command, the testbed and the evaluation) with CI and docs badges,
   a status note on the index page with the conclusions of the evaluation,
   and "Next steps" in the roadmap that list what 0.3.0 has (specification
   and conformance suite, Python reference implementation, converters,
@@ -428,12 +426,12 @@ move of the repository to GA4GH; until then, pin a commit SHA (see
   can't answer. The testbed says what to do when a port is in use; the
   limits of the evaluation, the end-to-end demo and the index page match
   the run. (#105)
-- A page "Transfer to GA4GH" with proposals for the transfer of the
-  repository: naming (`ga4gh/io-schema`), the licence checked against the
-  GA4GH Copyright Policy and GA4GH repositories, consistent copyright
-  notices, a governance note (work stream, leads, approval path, status of
-  the two-implementations requirement) and an identifier plan with
-  `$id`s under `https://w3id.org/ga4gh/schema/io-schema/`. (#26)
+- A page (now "Path to GA4GH") with proposals for the way to a GA4GH
+  product: naming, the licence checked against the GA4GH Copyright Policy
+  and GA4GH repositories, consistent copyright notices, a governance note
+  (work stream, leads, approval path, status of the two-implementations
+  requirement) and an identifier plan with `$id`s under
+  `https://w3id.org/ga4gh/schema/io-schema/`. (#26)
 - The page is now "Path to GA4GH", on hold without a date until the
   Federated Analysis Work Stream's feedback on 0.3.0, and follows the
   maintainer's decisions: the licences (docs CC-BY-4.0, code and schemas
@@ -605,9 +603,9 @@ move of the repository to GA4GH; until then, pin a commit SHA (see
   fragment, which a base URL has no use for and which could hold a token
   that the host's error messages would show in the browser. (#129)
 
-## 0.2.0 (2026-10-13)
+## 0.2.0
 
-Draft of the proposal; not released (no tag).
+2026-10-13 · [`45d4132`](https://github.com/elixir-cloud-aai/ga4gh-io-schema/commit/45d41324353cb4900fdd999c307c2e36a3f2a410)
 
 ### Breaking changes
 
@@ -652,9 +650,9 @@ Draft of the proposal; not released (no tag).
   cuts both claims, see
   [Open questions](https://ga4gh-io-schema.readthedocs.io/en/latest/roadmap/#open-questions).)
 
-## 0.1.0 (2026-10-10)
+## 0.1.0
 
-Initial draft of the proposal; not released (no tag).
+2026-10-10 · [`449ee0c`](https://github.com/elixir-cloud-aai/ga4gh-io-schema/commit/449ee0c40c980fe2443be0f24860d67115b26b09)
 
 ### Added
 
