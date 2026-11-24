@@ -119,7 +119,9 @@ https://w3id.org/ga4gh/schema/io-schema/v0.4.0/ga4gh-io-profile.schema.json
 https://w3id.org/ga4gh/schema/io-schema/v0.4.0/vocabularies/file.schema.json
 ```
 
-`{ref}` is a tag of a release, or `main` for the schemas under development.
+`{ref}` is the Git tag of a version, or `main` for the schemas under
+development. Versions 0.1.0 to 0.3.0 have no tags, so the first version
+with w3id `$id`s needs one for the redirect to resolve.
 The `$id`s of embedded resources follow the same pattern, e.g.,
 `…/v0.4.0/ga4gh-io-profile-node`.
 

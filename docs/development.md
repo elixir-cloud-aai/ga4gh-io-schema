@@ -125,8 +125,8 @@ check that it matches the document history.
 ## Releases
 
 A version is released at the commit that first declares it (in the
-document history and `pyproject.toml`); the changelog gives that commit
-and its date under the version's heading, and `CITATION.cff` names the
+document history and, since 0.3.0, in `pyproject.toml`); the changelog
+gives that commit and its date under the version's heading, and `CITATION.cff` names the
 latest version. Versions have no Git tags. A stable identifier for the
 schemas ([#26](https://github.com/elixir-cloud-aai/ga4gh-io-schema/issues/26))
 will replace the URLs above.
