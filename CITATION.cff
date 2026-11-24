@@ -2,15 +2,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# No `version` and `date-released`: there are no releases before the move
-# of the repository to GA4GH (see "Releases" in `docs/governance.md`); a
-# release sets them, and a DOI follows with the first archived release
+# `version`, `date-released` and `commit` name the latest version and the
+# first commit that bore it (see "Releases" in `docs/governance.md` and the
+# changelog); a DOI follows with the first archived release
 cff-version: 1.2.0
 message: >-
   If you use this software or the profile, please cite it using the metadata
-  from this file. Until there are releases, also give the commit that you
-  used.
+  from this file, and give the commit that you used.
 title: GA4GH IO Schema Profile
+version: 0.3.0
+date-released: "2026-11-18"
+commit: 29784f4ce75398a8ce5a5a4a139b5c2945fc6848
 abstract: >-
   A proposed GA4GH JSON Schema profile, with a meta-schema and a Python
   package, for the inputs and outputs of workflows and workflow components:
