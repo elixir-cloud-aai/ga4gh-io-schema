@@ -19,9 +19,9 @@ This repository incubates a proposed **GA4GH JSON Schema Profile** (and accompan
 
 ## Status
 
-This is version **0.3.0** of a proposal, not a GA4GH standard. It has no
-releases (no tags, nothing on PyPI) and waits for review by the GA4GH
-Federated Analysis Work Stream as a product candidate (see the
+This is version **0.3.0** of a proposal, not a GA4GH standard. It waits
+for review by the GA4GH Federated Analysis Work Stream as a product
+candidate (see the
 [Roadmap](https://ga4gh-io-schema.readthedocs.io/en/latest/roadmap/#next-steps)).
 
 Try it: the [live demo](https://ga4gh-io-schema.readthedocs.io/en/latest/adoption/testbed/)
@@ -76,12 +76,13 @@ pip install .
 ga4gh-io-schema validate path/to/your-schema.json
 ```
 
-There are no releases yet: no tags, and the package isn't published on
-PyPI. Releases come with the move of the repository to GA4GH. Until then,
-pin a commit SHA: install the package from it
-(`pip install "git+https://github.com/<owner>/ga4gh-io-schema@<sha>"`), or
+The package isn't published on PyPI, and versions have no Git tags. To use
+fixed content, pin a commit SHA (the
+[changelog](https://ga4gh-io-schema.readthedocs.io/en/latest/changelog/)
+gives the commit of each version): install the package from it
+(`pip install "git+https://github.com/elixir-cloud-aai/ga4gh-io-schema@<sha>"`), or
 download all schemas from
-`https://raw.githubusercontent.com/<owner>/ga4gh-io-schema/<sha>/schemas/...`
+`https://raw.githubusercontent.com/elixir-cloud-aai/ga4gh-io-schema/<sha>/schemas/...`
 and register each under its `$id`, without fetching remote references (see [Schema identifiers](https://ga4gh-io-schema.readthedocs.io/en/latest/development/#schema-identifiers)).
 
 Convert the input descriptions of CWL, Nextflow (nf-schema), Snakemake and WDL

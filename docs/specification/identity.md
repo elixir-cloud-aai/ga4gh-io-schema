@@ -17,8 +17,8 @@ Two identifiers and their versions are involved:
 - **The profile:** `$schema` names the meta-schema of the profile by its
   `$id` (see [Referencing the
   meta-schema](meta-schema.md#referencing-the-meta-schema)). The profile
-  has no releases yet, so its `$id`s name the `main` branch of the
-  repository; released versions will get versioned `$id`s that never name
+  has no stable identifier yet, so its `$id`s name the `main` branch of the
+  repository; later, released versions get versioned `$id`s that never name
   a branch (see [Schema identifiers](../development.md#schema-identifiers)).
   This is a temporary exception for the profile itself; the rules below
   for the `$id` of IO schemas apply in full.

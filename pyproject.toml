@@ -9,7 +9,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "ga4gh-io-schema"
-# No releases before the move to GA4GH (see docs/development.md).
+# The version of the proposal (see docs/development.md).
 version = "0.3.0"
 description = "GA4GH standard profile for workflow and tool inputs and outputs"
 readme = "README.md"

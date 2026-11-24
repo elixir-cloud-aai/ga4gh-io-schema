@@ -87,8 +87,8 @@ The versions of the validators are pinned in `package.json` and
 
 ## Schema identifiers
 
-The profile has no releases and no tags yet (see [Versioning and
-governance](governance.md#releases)). Until it has, the `$id`s of the
+Until the schemas have a stable identifier (see [Versioning and
+governance](governance.md#releases)), the `$id`s of the
 schemas in `schemas/`, and the `$schema` of the examples in `tests/data/`
 and `examples/`, of the cases in `tests/conformance/` and `tests/vectors/`
 and of the snippets in the documentation, start with
@@ -97,21 +97,18 @@ and of the snippets in the documentation, start with
 https://raw.githubusercontent.com/elixir-cloud-aai/ga4gh-io-schema/main/schemas/
 ```
 
-These URLs resolve once the repository has moved to elixir-cloud-aai and
-version 0.3.0 is merged into its `main` branch. `main` holds the latest
-reviewed state, so the content behind them changes, also with breaking
-changes: until the first release, `$schema` doesn't tell versions of the
+`main` holds the latest reviewed state, so the content behind these URLs
+changes, also with breaking changes: `$schema` doesn't tell versions of the
 profile apart, and the commit you pin does.
 
-To use fixed content, pin a commit SHA (`<owner>` is the owner of the
-repository at that time: `uniqueg` before the move, `elixir-cloud-aai`
-after it):
+To use fixed content, pin a commit SHA (the [changelog](changelog.md) gives
+the commit of each version):
 
 - In Python, install the package from that commit (`pip install
-  "git+https://github.com/<owner>/ga4gh-io-schema@<sha>"`); it ships the
+  "git+https://github.com/elixir-cloud-aai/ga4gh-io-schema@<sha>"`); it ships the
   schemas and never fetches them.
 - Elsewhere, download every file of `schemas/` from
-  `https://raw.githubusercontent.com/<owner>/ga4gh-io-schema/<sha>/schemas/...`,
+  `https://raw.githubusercontent.com/elixir-cloud-aai/ga4gh-io-schema/<sha>/schemas/...`,
   register each under its `$id`, and turn off the fetching of remote
   references, as [JavaScript validators](tools/javascript.md) describes. The
   `$ref`s between the schemas name `main`, so a validator that fetches them
@@ -122,16 +119,17 @@ it isn't the place you fetch the meta-schema from. `version` in
 `pyproject.toml` is the version of the proposal: the latest version of the
 [document history](roadmap.md#document-history) (e.g., `0.3.0`), or a
 development version of the next one (e.g., `0.3.1.dev0`) for work after
-it. It isn't a release (versions 0.1.0 to 0.3.0 have no tags) and isn't
-bumped per commit (pin the commit, not the version); the tests check that
-it matches the document history.
+it. It isn't bumped per commit (pin the commit, not the version); the tests
+check that it matches the document history.
 
 ## Releases
 
-Releases (tags `vMAJOR.MINOR.PATCH`) come with the move of the repository
-to GA4GH. A stable identifier for the schemas
-([#26](https://github.com/elixir-cloud-aai/ga4gh-io-schema/issues/26)) then replaces
-the URLs above.
+A version is released at the commit that first declares it (in the
+document history and `pyproject.toml`); the changelog gives that commit
+and its date under the version's heading, and `CITATION.cff` names the
+latest version. Versions have no Git tags. A stable identifier for the
+schemas ([#26](https://github.com/elixir-cloud-aai/ga4gh-io-schema/issues/26))
+will replace the URLs above.
 
 ## Changelog and conformance suite
 
@@ -269,7 +267,7 @@ of the command-line tool (about 1 s per run) is mostly this import.
 ## Branches and pull requests
 
 `dev` is the default branch and the target of all pull requests; `main`
-holds the reviewed states that are published (and, later, the releases).
+holds the reviewed states that are published.
 The `v0.N` integration branches used before the move to elixir-cloud-aai
 are gone, and CI runs on pushes to `dev` and `main` only. Pull requests are squash-merged, so their titles become
 the commit messages: Conventional Commits, at most 50 characters (checked

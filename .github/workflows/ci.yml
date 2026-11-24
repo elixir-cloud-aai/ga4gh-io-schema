@@ -207,7 +207,7 @@ jobs:
       # Uploaded once, from the version of the other single-version jobs.
       # Upload errors fail the workflow only on pushes in elixir-cloud-aai:
       # pull requests from forks and Dependabot get no access to the Codecov
-      # token, and Codecov isn't set up before the transfer
+      # token, and forks have no Codecov set up
       - name: Submit report to Codecov
         if: ${{ matrix.python-version == '3.13' }}
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
