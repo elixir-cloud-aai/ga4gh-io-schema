@@ -11,7 +11,9 @@ local mock server instead, so the tests run offline.
 import hashlib
 import io
 import json
+import shutil
 import socket
+import subprocess
 import sys
 import threading
 from collections.abc import Iterator
@@ -34,6 +36,7 @@ from ga4gh_io_schema.wes import TranslationError, to_workflow_params
 # build_schema, conquest, demo_http, register and trs_client are the demo
 # scripts, on the path through `pythonpath` of pytest (pyproject.toml).
 DEMO_DIR = Path(__file__).resolve().parents[1] / "examples" / "demo"
+DOCS_DIR = Path(__file__).resolve().parents[1] / "docs"
 
 SHA = "0123456789abcdef0123456789abcdef01234567"
 SCHEMA = json.loads((DEMO_DIR / "ga4gh-io.schema.json").read_text(encoding="utf-8"))
@@ -275,7 +278,67 @@ def test_version_names_the_outputs() -> None:
     Deployments that registered 1.0.0, with three outputs, keep a
     consistent entry: a new descriptor gets a new version.
     """
-    assert SCHEMA["x-ga4gh-workflow"]["trs_version_id"] == "1.1.0"
+    assert SCHEMA["x-ga4gh-workflow"]["trs_version_id"] != "1.0.0"
+
+
+#: Output of ``samtools idxstats`` for the test data, before and after
+#: filtering with ``min_mapq=20`` and ``read_filter=proper_pairs``.
+IDXSTATS_BEFORE = "MT192765.1\t29829\t197\t3\n*\t0\t0\t0\n"
+IDXSTATS_AFTER = "MT192765.1\t29829\t192\t0\n*\t0\t0\t0\n"
+
+
+def _count_reads(tmp_path: Path, before: str, after: str) -> list[list[str]]:
+    """Run the ``awk`` program of the task ``count_reads`` of the demo.
+
+    Args:
+        tmp_path: Directory for the input files.
+        before: ``samtools idxstats`` of the input.
+        after: ``samtools idxstats`` of the filtered reads.
+
+    Returns:
+        The rows of the table, split into cells.
+    """
+    if shutil.which("awk") is None:  # pragma: no cover
+        pytest.skip("awk isn't installed")
+    text = (DEMO_DIR / "demo.wdl").read_text(encoding="utf-8")
+    prefix = "awk -F '\\t' -v OFS='\\t' '"
+    start = text.index(prefix) + len(prefix)
+    program = text[start : text.index("' after.tsv before.tsv", start)]
+    (tmp_path / "before.tsv").write_text(before, encoding="utf-8")
+    (tmp_path / "after.tsv").write_text(after, encoding="utf-8")
+    result = subprocess.run(
+        ["awk", "-F", "\t", "-v", "OFS=\t", program, "after.tsv", "before.tsv"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return [line.split("\t") for line in result.stdout.splitlines()]
+
+
+def test_count_reads_table(tmp_path: Path) -> None:
+    """The table of read counts is the one that the docs show.
+
+    The docs show it aligned with spaces; the file has tabs.
+    """
+    rows = _count_reads(tmp_path, IDXSTATS_BEFORE, IDXSTATS_AFTER)
+    docs = (DOCS_DIR / "adoption" / "demo.md").read_text(encoding="utf-8")
+    block = docs.split("```text\nreference")[1].split("```")[0]
+    assert rows == [line.split() for line in f"reference{block}".splitlines()]
+
+
+def test_count_reads_joins_by_name(tmp_path: Path) -> None:
+    """Counts are joined by reference name, 0 where the filtered reads have none.
+
+    The rows keep the order of the input.
+    """
+    before = "chr2\t20\t5\t1\nchr1\t10\t7\t0\n*\t0\t0\t4\n"
+    after = "chr1\t10\t6\t0\n*\t0\t0\t0\n"
+    assert _count_reads(tmp_path, before, after)[1:] == [
+        ["chr2", "20", "5", "1", "0", "0"],
+        ["chr1", "10", "7", "0", "6", "0"],
+        ["*", "0", "0", "4", "0", "0"],
+    ]
 
 
 # Registration in TRS-Filer

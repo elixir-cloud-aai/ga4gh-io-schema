@@ -240,9 +240,9 @@ Once a portal as described in [Prerequisites](#prerequisites) is deployed
 3. Enter the values of `values.json` and submit. Expected: the run moves from
    `QUEUED` through `RUNNING` to `COMPLETE`.
 4. Open the outputs. Expected: the four outputs with their titles; the
-   report in a sandboxed viewer, the read counts as a table. Conquest gives `s3://` URIs, which a browser
-   can download only through a gateway or presigned URLs (see [Known
-   limits](#known-limits)).
+   report in a sandboxed viewer, the read counts as a table. Conquest gives
+   `s3://` URIs, which a browser can download only through a gateway or
+   presigned URLs (see [Known limits](#known-limits)).
 
 ## Running the workflow locally
 
@@ -294,8 +294,8 @@ get another workflow under its identifier.
 
 | Version | Outputs | In |
 | --- | --- | --- |
-| `1.1.0` | `filtered_bam`, `filtered_bam_index`, `report`, `read_counts` | `examples/demo/` of the branch `dev`, from the release after 0.3.0 |
-| `1.0.0` | `filtered_bam`, `filtered_bam_index`, `report` | Release 0.3.0, commit [`29784f4`](https://github.com/elixir-cloud-aai/ga4gh-io-schema/commit/29784f4ce75398a8ce5a5a4a139b5c2945fc6848) |
+| `1.1.0` | `filtered_bam`, `filtered_bam_index`, `report`, `read_counts` | The branch `dev` (on `main` from the release after 0.3.0) |
+| `1.0.0` | `filtered_bam`, `filtered_bam_index`, `report` | Release 0.3.0: its commit, as the changelog names it, [`29784f4`](https://github.com/elixir-cloud-aai/ga4gh-io-schema/commit/29784f4ce75398a8ce5a5a4a139b5c2945fc6848) |
 
 Each version is registered from a checkout of a commit that has it, with
 that commit as `--revision`: the files in TRS and the URL of the primary
@@ -316,11 +316,12 @@ OLD_SHA=29784f4ce75398a8ce5a5a4a139b5c2945fc6848
 git worktree add --detach ../io-schema-demo-1.0.0 "$OLD_SHA"
 python ../io-schema-demo-1.0.0/examples/demo/register.py --trs-url "$TRS_URL" \
   --revision "$OLD_SHA"
-git worktree remove ../io-schema-demo-1.0.0
 ```
 
-A run of `1.0.0` on Conquest pins the same commit: `conquest.py` of that
-checkout, with `--revision "$OLD_SHA"`.
+A run of `1.0.0` on Conquest pins the same commit: run `conquest.py` of
+that worktree with `--revision "$OLD_SHA"` before removing it (`git
+worktree remove ../io-schema-demo-1.0.0`). A shallow clone may lack the
+commit: `git fetch --unshallow` first.
 
 ## Known limits
 
