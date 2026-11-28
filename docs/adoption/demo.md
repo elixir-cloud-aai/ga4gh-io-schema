@@ -309,7 +309,11 @@ python examples/demo/register.py --trs-url "$TRS_URL" --revision "$SHA" --add-ve
 
 Without `--add-version`, the tool has `1.1.0` only. To register `1.0.0`
 again, e.g., for clients that pinned it, register it from its commit first
-(it replaces the tool), then add `1.1.0` as above:
+(it replaces the tool, as the `register.py` of that commit has no
+`--add-version`), then add `1.1.0` as above. Until the second step has
+succeeded, the tool has `1.0.0` only: if it fails, run it again (it
+replaces the version, so running it twice does no harm). Don't run other
+registrations of the tool meanwhile.
 
 ```bash
 OLD_SHA=29784f4ce75398a8ce5a5a4a139b5c2945fc6848
