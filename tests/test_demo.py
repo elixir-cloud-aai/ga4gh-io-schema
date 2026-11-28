@@ -241,7 +241,41 @@ def test_expected_outputs() -> None:
     """The documented outputs are the normalised outputs of the run log."""
     assert normalise_outputs(SCHEMA, RUN_LOG).to_json() == OUTPUTS
     assert OUTPUTS["conformance"] == "conformant"
-    assert set(OUTPUTS["outputs"]) == {"filtered_bam", "filtered_bam_index", "report"}
+    assert set(OUTPUTS["outputs"]) == {
+        "filtered_bam",
+        "filtered_bam_index",
+        "report",
+        "read_counts",
+    }
+
+
+def test_outputs_show_both_viewers() -> None:
+    """The run has an output for each viewer of the profile.
+
+    A portal that shows the outputs of a run by their hints can then
+    demonstrate both: the report with ``html-viewer``, the read counts with
+    ``table-viewer``.
+    """
+    outputs = SCHEMA["properties"]["outputs"]["properties"]
+    assert outputs["report"]["x-ga4gh-ui-widget"] == "html-viewer"
+    table = outputs["read_counts"]
+    assert table["x-ga4gh-ui-widget"] == "table-viewer"
+    assert table["x-ga4gh-file"] == {
+        "kind": "file",
+        "mediaType": "text/tab-separated-values",
+    }
+    assert table["title"]
+    assert table["description"]
+    assert "read_counts" in SCHEMA["properties"]["outputs"]["required"]
+
+
+def test_version_names_the_outputs() -> None:
+    """The tool version with the table output isn't 1.0.0.
+
+    Deployments that registered 1.0.0, with three outputs, keep a
+    consistent entry: a new descriptor gets a new version.
+    """
+    assert SCHEMA["x-ga4gh-workflow"]["trs_version_id"] == "1.1.0"
 
 
 # Registration in TRS-Filer
@@ -335,7 +369,7 @@ def test_register(
     assert exchange.body == register.build_payload(SHA)
     captured = capsys.readouterr()
     assert captured.out.strip() == (
-        f"{mock.url}/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0"
+        f"{mock.url}/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0"
         "/WDL/descriptor/ga4gh-io.schema.json"
     )
     assert "secret-token" not in captured.out + captured.err
@@ -346,6 +380,57 @@ def test_register_fails(mock: Mock, capsys: pytest.CaptureFixture[str]) -> None:
     mock.add("PUT", "/tools/ga4gh-io-schema-demo", 401, {"title": "Unauthorized"})
     assert register.main(["--trs-url", mock.url, "--revision", SHA]) == 1
     assert "HTTP 401" in capsys.readouterr().err
+
+
+def test_version_payload() -> None:
+    """A version on its own is the tool's version, without its ID.
+
+    TRS-Filer takes the ID from the path of ``PUT
+    /tools/{id}/versions/{version_id}``, and the body has no ``id``.
+    """
+    version = register.build_version_payload(SHA, schema_file_type="IO_SCHEMA")
+    (expected,) = register.build_payload(SHA, schema_file_type="IO_SCHEMA")["versions"]
+    assert "id" not in version
+    assert version == {k: v for k, v in expected.items() if k != "id"}
+
+
+def test_register_add_version(
+    mock: Mock,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """``--add-version`` adds the version and keeps the tool's other ones."""
+    monkeypatch.setenv("TRS_TOKEN", "secret-token")
+    path = "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0"
+    mock.add("PUT", path, 200, "1.1.0")
+    trs_url = f"{mock.url}/ga4gh/trs/v2"
+    argv = ["--trs-url", trs_url, "--revision", SHA, "--add-version"]
+    assert register.main(argv) == 0
+    (exchange,) = mock.received
+    assert exchange.method == "PUT"
+    assert exchange.path == path
+    assert exchange.headers["Authorization"] == "Bearer secret-token"
+    assert exchange.body == register.build_version_payload(SHA)
+    assert capsys.readouterr().out.strip() == (
+        f"{mock.url}{path}/WDL/descriptor/ga4gh-io.schema.json"
+    )
+
+
+def test_register_add_version_fails(
+    mock: Mock, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An error, e.g., for a tool that isn't registered, is reported."""
+    path = "/tools/ga4gh-io-schema-demo/versions/1.1.0"
+    mock.add("PUT", path, 404, {"title": "Not Found"})
+    argv = ["--trs-url", mock.url, "--revision", SHA, "--add-version"]
+    assert register.main(argv) == 1
+    assert "HTTP 404" in capsys.readouterr().err
+
+
+def test_register_add_version_dry_run(capsys: pytest.CaptureFixture[str]) -> None:
+    """With ``--dry-run``, ``--add-version`` prints the version only."""
+    assert register.main(["--revision", SHA, "--add-version", "--dry-run"]) == 0
+    assert json.loads(capsys.readouterr().out) == register.build_version_payload(SHA)
 
 
 # HTTP
@@ -672,7 +757,7 @@ def test_payload_with_io_schema_file_type() -> None:
 #: Path of the TRS API on the mock server.
 API = "/ga4gh/trs/v2"
 #: Path of the demo's tool version for WDL on the mock server.
-VERSION = f"{API}/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL"
+VERSION = f"{API}/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL"
 #: Path of the I/O Schema of the demo's tool version, as listed.
 SCHEMA_PATH = f"{VERSION}/descriptor/.%2Fga4gh-io.schema.json"
 #: The primary descriptor of the demo, as TRS-Filer serves it.
@@ -714,7 +799,7 @@ def test_trs_client(
     captured = capsys.readouterr()
     request = json.loads(captured.out)
     assert request["workflow_url"] == (
-        f"{mock.url}{API}/tools/ga4gh-io-schema-demo/versions/1.0.0"
+        f"{mock.url}{API}/tools/ga4gh-io-schema-demo/versions/1.1.0"
         "/PLAIN_WDL/descriptor/demo.wdl"
     )
     assert request["workflow_params"] == to_workflow_params(SCHEMA, VALUES)

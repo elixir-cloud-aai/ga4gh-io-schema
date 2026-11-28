@@ -23,7 +23,7 @@ the type, and the client finds it there.
    Compose project of its own (`io-schema-trs-filer-demo`), on
    `127.0.0.1` only, without authentication (TRS-Filer's
    `config.noauth.yaml`, for local development only).
-2. Registers the tool `ga4gh-io-schema-demo`, version `1.0.0`, with
+2. Registers the tool `ga4gh-io-schema-demo`, version `1.1.0`, with
    [`register.py`](demo.md#1-register-the-workflow): the primary descriptor
    `demo.wdl` and the IO schema `ga4gh-io.schema.json` of type
    `IO_SCHEMA`.
@@ -80,7 +80,7 @@ An example, with TRS-Filer with `IO_SCHEMA` (`dev`) on port 18082:
 
 ```text
 == Register the demo workflow (IO schema of type IO_SCHEMA)
-http://127.0.0.1:18082/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL/descriptor/ga4gh-io.schema.json
+http://127.0.0.1:18082/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL/descriptor/ga4gh-io.schema.json
 == Find the IO schema as a client and build the run request
 1. Files of the tool version: [{"file_type": "PRIMARY_DESCRIPTOR", "path": "demo.wdl"}, {"file_type": "IO_SCHEMA", "path": "ga4gh-io.schema.json"}]
 2. IO schema: ga4gh-io.schema.json (file type IO_SCHEMA)
@@ -98,7 +98,7 @@ http://127.0.0.1:18082/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WD
   },
   "workflow_type": "WDL",
   "workflow_type_version": "1.1",
-  "workflow_url": "http://127.0.0.1:18082/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/PLAIN_WDL/descriptor/demo.wdl"
+  "workflow_url": "http://127.0.0.1:18082/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/PLAIN_WDL/descriptor/demo.wdl"
 }
 ```
 

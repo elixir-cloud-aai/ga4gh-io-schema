@@ -73,7 +73,7 @@ data.](../assets/prototype/outputs.png)
 shown before a pick.](../assets/prototype/pick.png)
 
 The list "Workflow in TRS" comes from `GET /tools` of the stub: one entry
-per tool version and descriptor type. Pick "I/O Schema demo 1.0.0 (WDL)".
+per tool version and descriptor type. Pick "I/O Schema demo 1.1.0 (WDL)".
 The host then lists the files of that tool version, finds the IO schema
 (`ga4gh-io.schema.json` of type `OTHER`, next to the primary descriptor, as
 the stub serves it; a file of type `IO_SCHEMA` would come first, see
@@ -124,7 +124,7 @@ shows the run request that a WES gets:
   },
   "workflow_type": "WDL",
   "workflow_type_version": "1.1",
-  "workflow_url": "http://trs-stub:8080/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/PLAIN_WDL/descriptor/demo.wdl"
+  "workflow_url": "http://trs-stub:8080/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/PLAIN_WDL/descriptor/demo.wdl"
 }
 ```
 
@@ -320,7 +320,7 @@ its URL:
 
 ```bash
 python prototype/host/form_host.py --schema \
-  http://127.0.0.1:8080/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL/descriptor/ga4gh-io.schema.json
+  http://127.0.0.1:8080/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL/descriptor/ga4gh-io.schema.json
 ```
 
 `tests/test_trs_stub.py` tests the endpoints and that the host loads the
