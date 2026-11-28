@@ -36,7 +36,7 @@ mismatch, and uses a schema unverified if TRS doesn't serve the
 
 ```bash
 ga4gh-io-schema verify --schema examples/demo/ga4gh-io.schema.json \
-  --trs-tool-id ga4gh-io-schema-demo --trs-version-id 1.0.0 \
+  --trs-tool-id ga4gh-io-schema-demo --trs-version-id 1.1.0 \
   --descriptor-type WDL --descriptor examples/demo/demo.wdl
 ```
 
@@ -71,10 +71,10 @@ the `message`, e.g., for another tool version:
 ```json
 {
   "field": "trs_version_id",
-  "schema": "1.0.0",
-  "workflow": "1.1.0",
+  "schema": "1.1.0",
+  "workflow": "1.0.0",
   "algorithm": null,
-  "message": "x-ga4gh-workflow.trs_version_id is '1.0.0', not '1.1.0'."
+  "message": "x-ga4gh-workflow.trs_version_id is '1.1.0', not '1.0.0'."
 }
 ```
 

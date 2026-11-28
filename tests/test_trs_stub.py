@@ -31,7 +31,7 @@ WORKFLOWS = ROOT / "examples" / "workflows"
 DEMO_SCHEMA = json.loads((DEMO / "ga4gh-io.schema.json").read_text(encoding="utf-8"))
 DEMO_WDL = (DEMO / "demo.wdl").read_text(encoding="utf-8")
 TOOL = "ga4gh-io-schema-demo"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 
 @contextlib.contextmanager
@@ -274,15 +274,15 @@ def test_stub_serves_the_schema(stub: str) -> None:
         "/ga4gh/trs/v2/tools/unknown/versions",
         "/ga4gh/trs/v2/tools/unknown/versions/1.0.0",
         "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/0.0.0",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/CWL/files",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/PLAIN_WDL/files",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/PLAIN_CWL/descriptor",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL/descriptor/x.wdl",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL/descriptor/..%2Fdemo.wdl",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL/",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL/containerfile",
-        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0/WDL/tests",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/CWL/files",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/PLAIN_WDL/files",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/PLAIN_CWL/descriptor",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL/descriptor/x.wdl",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL/descriptor/..%2Fdemo.wdl",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL/",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL/containerfile",
+        "/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0/WDL/tests",
     ],
 )
 def test_stub_answers_404_with_a_trs_error(stub: str, path: str) -> None:
@@ -299,7 +299,7 @@ def test_stub_merges_versions_of_one_tool(tmp_path: Path) -> None:
     workflows = [trs_stub.load_workflow(DEMO), trs_stub.load_workflow(other)]
     with serve(workflows) as url:
         tools = get_json(f"{url}/tools")
-    assert [v["id"] for v in tools[0]["versions"]] == ["1.0.0", "2.0.0"]
+    assert [v["id"] for v in tools[0]["versions"]] == ["1.1.0", "2.0.0"]
 
 
 def test_stub_rejects_duplicate_versions() -> None:

@@ -11,12 +11,15 @@ a file of type ``OTHER``, as the TRS convention of the profile says for TRS
 servers without the file type ``IO_SCHEMA``, or, with ``--schema-file-type
 IO_SCHEMA``, of that type. The identifiers of the tool and the version are
 those that the schema names in ``x-ga4gh-workflow``, so the tool is created
-with ``PUT /tools/{id}``.
+with ``PUT /tools/{id}``, which replaces any registered tool with this one
+version; with ``--add-version``, the version is added to the registered
+tool, next to its other versions, with ``PUT
+/tools/{id}/versions/{version_id}``.
 
 Usage::
 
     python examples/demo/register.py --trs-url URL --revision SHA \
-        [--schema-file-type {OTHER,IO_SCHEMA}] [--dry-run]
+        [--schema-file-type {OTHER,IO_SCHEMA}] [--add-version] [--dry-run]
 
 The access token for writing, if the instance needs one, is read from the
 environment variable ``TRS_TOKEN``.
@@ -101,12 +104,15 @@ def _sha256(content: bytes) -> list[dict[str, str]]:
     return [{"type": "sha-256", "checksum": hashlib.sha256(content).hexdigest()}]
 
 
-def build_payload(
+def build_version_payload(
     revision: str,
     repository: str = DEFAULT_REPOSITORY,
     schema_file_type: str = OTHER_FILE_TYPE,
 ) -> dict[str, Any]:
-    """Build the TRS-Filer registration of the demo tool (``ToolRegister``).
+    """Build the TRS-Filer registration of the demo's tool version.
+
+    The version is a ``ToolVersionRegister``, without its ID, which is in
+    the path of the request.
 
     Args:
         revision: Full commit SHA that the URL of the primary descriptor
@@ -116,7 +122,7 @@ def build_payload(
             ``IO_SCHEMA`` for TRS servers that have it.
 
     Returns:
-        The body of ``PUT /tools/{id}``.
+        The body of ``PUT /tools/{id}/versions/{version_id}``.
 
     Raises:
         ValueError: If the revision or the repository is malformed.
@@ -133,6 +139,64 @@ def build_payload(
     )
     descriptor_type = workflow["descriptor_type"]
     return {
+        "name": schema["title"],
+        "descriptor_type": [descriptor_type],
+        "descriptor_type_version": {
+            descriptor_type: [workflow["descriptor_type_version"]]
+        },
+        "is_production": False,
+        "files": [
+            {
+                "tool_file": {
+                    "path": descriptor_path,
+                    "file_type": "PRIMARY_DESCRIPTOR",
+                },
+                "type": descriptor_type,
+                "file_wrapper": {
+                    "content": descriptor_bytes.decode("utf-8"),
+                    "checksum": _sha256(descriptor_bytes),
+                    "url": f"{raw_base}/{revision}/{REPOSITORY_DIR}/{descriptor_path}",
+                },
+            },
+            {
+                "tool_file": {
+                    "path": SCHEMA_NAME,
+                    "file_type": schema_file_type,
+                },
+                "type": descriptor_type,
+                "file_wrapper": {
+                    "content": schema_bytes.decode("utf-8"),
+                    "checksum": _sha256(schema_bytes),
+                },
+            },
+        ],
+    }
+
+
+def build_payload(
+    revision: str,
+    repository: str = DEFAULT_REPOSITORY,
+    schema_file_type: str = OTHER_FILE_TYPE,
+) -> dict[str, Any]:
+    """Build the TRS-Filer registration of the demo tool (``ToolRegister``).
+
+    Args:
+        revision: Full commit SHA that the URL of the primary descriptor
+            pins; the commit must contain the demo files as they are here.
+        repository: Root URL of the GitHub repository with the demo.
+        schema_file_type: TRS file type of the I/O Schema: ``OTHER``, or
+            ``IO_SCHEMA`` for TRS servers that have it.
+
+    Returns:
+        The body of ``PUT /tools/{id}``, with the demo's version as the only
+        version of the tool.
+
+    Raises:
+        ValueError: If the revision or the repository is malformed.
+    """
+    version = build_version_payload(revision, repository, schema_file_type)
+    schema = json.loads((DEMO_DIR / SCHEMA_NAME).read_bytes())
+    return {
         "organization": "GA4GH I/O Schema",
         "name": schema["title"],
         "description": schema["description"],
@@ -141,42 +205,7 @@ def build_payload(
             "name": "Workflow",
             "description": "A workflow.",
         },
-        "versions": [
-            {
-                "id": workflow["trs_version_id"],
-                "name": schema["title"],
-                "descriptor_type": [descriptor_type],
-                "descriptor_type_version": {
-                    descriptor_type: [workflow["descriptor_type_version"]]
-                },
-                "is_production": False,
-                "files": [
-                    {
-                        "tool_file": {
-                            "path": descriptor_path,
-                            "file_type": "PRIMARY_DESCRIPTOR",
-                        },
-                        "type": descriptor_type,
-                        "file_wrapper": {
-                            "content": descriptor_bytes.decode("utf-8"),
-                            "checksum": _sha256(descriptor_bytes),
-                            "url": f"{raw_base}/{revision}/{REPOSITORY_DIR}/{descriptor_path}",
-                        },
-                    },
-                    {
-                        "tool_file": {
-                            "path": SCHEMA_NAME,
-                            "file_type": schema_file_type,
-                        },
-                        "type": descriptor_type,
-                        "file_wrapper": {
-                            "content": schema_bytes.decode("utf-8"),
-                            "checksum": _sha256(schema_bytes),
-                        },
-                    },
-                ],
-            }
-        ],
+        "versions": [{"id": schema["x-ga4gh-workflow"]["trs_version_id"], **version}],
     }
 
 
@@ -204,6 +233,20 @@ def tool_url(trs_url: str, workflow: dict[str, Any]) -> str:
     return f"{trs_url.rstrip('/')}/tools/{tool_id}"
 
 
+def version_url(trs_url: str, workflow: dict[str, Any]) -> str:
+    """Return the TRS URL of the demo's tool version.
+
+    Args:
+        trs_url: Base URL of the TRS API.
+        workflow: The ``x-ga4gh-workflow`` block of the schema.
+
+    Returns:
+        The URL of the version, ``{trs_url}/tools/{id}/versions/{version_id}``.
+    """
+    version_id = urllib.parse.quote(workflow["trs_version_id"], safe="")
+    return f"{tool_url(trs_url, workflow)}/versions/{version_id}"
+
+
 def schema_url(trs_url: str, workflow: dict[str, Any]) -> str:
     """Return the TRS URL of the I/O Schema of the registered version.
 
@@ -214,9 +257,8 @@ def schema_url(trs_url: str, workflow: dict[str, Any]) -> str:
     Returns:
         The URL of the schema's ``FileWrapper``.
     """
-    version_id = urllib.parse.quote(workflow["trs_version_id"], safe="")
     return (
-        f"{tool_url(trs_url, workflow)}/versions/{version_id}"
+        f"{version_url(trs_url, workflow)}"
         f"/{workflow['descriptor_type']}/descriptor/{SCHEMA_NAME}"
     )
 
@@ -254,13 +296,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         "TRS servers that have it, e.g., TRS-Filer from its branch dev)",
     )
     parser.add_argument(
+        "--add-version",
+        action="store_true",
+        help="add the version to the registered tool, keeping its other "
+        "versions, instead of replacing the tool with this version only",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="print the registration instead of sending it",
     )
     args = parser.parse_args(argv)
+    build = build_version_payload if args.add_version else build_payload
     try:
-        payload = build_payload(args.revision, args.repository, args.schema_file_type)
+        payload = build(args.revision, args.repository, args.schema_file_type)
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1
@@ -271,10 +320,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("Error: --trs-url is required unless --dry-run is given", file=sys.stderr)
         return 1
     workflow = load_workflow()
+    url = (version_url if args.add_version else tool_url)(args.trs_url, workflow)
     try:
-        request_json(
-            "PUT", tool_url(args.trs_url, workflow), payload, token_env=TOKEN_ENV
-        )
+        request_json("PUT", url, payload, token_env=TOKEN_ENV)
     except HTTPError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 1

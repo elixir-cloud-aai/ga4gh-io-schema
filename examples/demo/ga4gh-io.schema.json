@@ -9,11 +9,11 @@
     "checksum": [
       {
         "type": "sha-256",
-        "checksum": "752bcc3fafff87dbd85121975b05264735021a7aaf07d5e802183100be862c1b"
+        "checksum": "505fa515d58e09e758a2c131398a26b7e1b9e4243899dce96c005cda4c790a65"
       }
     ],
     "trs_tool_id": "ga4gh-io-schema-demo",
-    "trs_version_id": "1.0.0",
+    "trs_version_id": "1.1.0",
     "primary_descriptor_path": "demo.wdl"
   },
   "type": "object",
@@ -113,12 +113,26 @@
             "type": "File"
           },
           "x-ga4gh-ui-widget": "html-viewer"
+        },
+        "read_counts": {
+          "type": "string",
+          "x-ga4gh-file": {
+            "kind": "file",
+            "mediaType": "text/tab-separated-values"
+          },
+          "description": "Mapped and unmapped reads per reference sequence, before and after filtering; unmapped reads without a position are counted under *.",
+          "title": "Read counts per reference (TSV)",
+          "x-ga4gh-parameter": {
+            "type": "File"
+          },
+          "x-ga4gh-ui-widget": "table-viewer"
         }
       },
       "required": [
         "filtered_bam",
         "filtered_bam_index",
-        "report"
+        "report",
+        "read_counts"
       ],
       "additionalProperties": false
     }

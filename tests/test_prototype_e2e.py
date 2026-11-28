@@ -57,11 +57,11 @@ SEEDED = {
 }
 HOST = os.environ.get("PROTOTYPE_URL", "").rstrip("/")
 #: The demo workflow, as the page picks it.
-PICK = "?tool=ga4gh-io-schema-demo&version=1.0.0&type=WDL"
+PICK = "?tool=ga4gh-io-schema-demo&version=1.1.0&type=WDL"
 #: The TRS URL of the demo's primary descriptor, inside the stack (the
 #: service name of the stub in prototype/compose.yaml).
 WORKFLOW_URL = (
-    "http://trs-stub:8080/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0"
+    "http://trs-stub:8080/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0"
     "/PLAIN_WDL/descriptor/demo.wdl"
 )
 #: The values of the demo.
@@ -116,7 +116,7 @@ def test_user_gets_the_run_request_of_a_workflow_from_trs() -> None:
     assert config["wes"] is False
     assert config["workflows"][0] == {
         "tool_id": "ga4gh-io-schema-demo",
-        "version_id": "1.0.0",
+        "version_id": "1.1.0",
         "descriptor_type": "WDL",
         "name": "I/O Schema demo",
     }
@@ -169,7 +169,7 @@ def test_user_gets_the_run_request_in_the_browser() -> None:
             page.goto(f"{HOST}/")
             # The picker lists the workflow of the stub; no form before a pick
             page.wait_for_selector("#workflow option:nth-child(2)", state="attached")
-            page.select_option("#workflow", label="I/O Schema demo 1.0.0 (WDL)")
+            page.select_option("#workflow", label="I/O Schema demo 1.1.0 (WDL)")
             page.wait_for_selector("#title:has-text('I/O Schema demo')")
             form = page.locator("io-schema-form")
             form.get_by_label("Aligned reads (BAM)").fill(VALUES["reads"])

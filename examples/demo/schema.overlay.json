@@ -2,7 +2,7 @@
   "title": "I/O Schema demo",
   "x-ga4gh-workflow": {
     "trs_tool_id": "ga4gh-io-schema-demo",
-    "trs_version_id": "1.0.0",
+    "trs_version_id": "1.1.0",
     "primary_descriptor_path": "demo.wdl"
   },
   "properties": {
@@ -49,6 +49,13 @@
             "mediaType": "text/html"
           },
           "x-ga4gh-ui-widget": "html-viewer"
+        },
+        "read_counts": {
+          "x-ga4gh-file": {
+            "kind": "file",
+            "mediaType": "text/tab-separated-values"
+          },
+          "x-ga4gh-ui-widget": "table-viewer"
         }
       }
     }

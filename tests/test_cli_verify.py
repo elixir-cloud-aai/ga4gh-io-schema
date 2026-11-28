@@ -24,7 +24,7 @@ IDS = [
     "--trs-tool-id",
     "ga4gh-io-schema-demo",
     "--trs-version-id",
-    "1.0.0",
+    "1.1.0",
     "--descriptor-type",
     "WDL",
 ]
@@ -82,14 +82,14 @@ def test_mismatches_fail(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> 
     changed.write_bytes(DESCRIPTOR.read_bytes() + b"\n")
 
     status = main(
-        check("--trs-version-id", "1.1.0", "--descriptor", str(changed), "--json")
+        check("--trs-version-id", "1.0.0", "--descriptor", str(changed), "--json")
     )
 
     assert status == 1
     error = json.loads(capsys.readouterr().err)
     assert error["error"]["message"].startswith(
         "The schema may not match the workflow: "
-        "x-ga4gh-workflow.trs_version_id is '1.0.0', not '1.1.0'. "
+        "x-ga4gh-workflow.trs_version_id is '1.1.0', not '1.0.0'. "
         "x-ga4gh-workflow.checksum (sha-256) is '"
     )
     assert error["verified"] is False

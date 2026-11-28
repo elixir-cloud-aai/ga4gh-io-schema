@@ -315,7 +315,7 @@ def test_workflow_url_from_trs_or_the_descriptor_path() -> None:
     """Test the workflow URL: in TRS if known, else the descriptor's path."""
     trs = "http://trs:8080/ga4gh/trs/v2/"
     assert form_host.workflow_url(DEMO_SCHEMA, trs) == (
-        "http://trs:8080/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.0.0"
+        "http://trs:8080/ga4gh/trs/v2/tools/ga4gh-io-schema-demo/versions/1.1.0"
         "/PLAIN_WDL/descriptor/demo.wdl"
     )
     assert form_host.workflow_url(DEMO_SCHEMA) == "demo.wdl"
@@ -1087,10 +1087,10 @@ def test_invalid_pattern_is_an_error(
     assert message in errors[0]["message"]
 
 
-DEMO_PICK = "tool=ga4gh-io-schema-demo&version=1.0.0&type=WDL"
+DEMO_PICK = "tool=ga4gh-io-schema-demo&version=1.1.0&type=WDL"
 DEMO_ENTRY = {
     "tool_id": "ga4gh-io-schema-demo",
-    "version_id": "1.0.0",
+    "version_id": "1.1.0",
     "descriptor_type": "WDL",
     "name": "I/O Schema demo",
 }
@@ -1116,10 +1116,10 @@ def test_list_workflows_needs_tools(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_load_trs_schema(trs: str) -> None:
     """Test that the schema is found next to the primary descriptor in TRS."""
-    schema, url = form_host.load_trs_schema(trs, "ga4gh-io-schema-demo", "1.0.0", "WDL")
+    schema, url = form_host.load_trs_schema(trs, "ga4gh-io-schema-demo", "1.1.0", "WDL")
     assert schema == DEMO_SCHEMA
     assert url == (
-        f"{trs}/tools/ga4gh-io-schema-demo/versions/1.0.0/PLAIN_WDL/descriptor/demo.wdl"
+        f"{trs}/tools/ga4gh-io-schema-demo/versions/1.1.0/PLAIN_WDL/descriptor/demo.wdl"
     )
 
 
@@ -1129,9 +1129,9 @@ def test_load_trs_schema_checks_the_workflow_block() -> None:
     other = trs_stub.Workflow(**{**demo.__dict__, "tool_id": "other"})
     with run_stub([other]) as base:
         with pytest.raises(ValueError, match="trs_tool_id"):
-            form_host.load_trs_schema(base, "other", "1.0.0", "WDL")
+            form_host.load_trs_schema(base, "other", "1.1.0", "WDL")
         with pytest.raises(OSError):
-            form_host.load_trs_schema(base, "other", "1.0.0", "CWL")
+            form_host.load_trs_schema(base, "other", "1.1.0", "CWL")
 
 
 def test_load_trs_schema_without_descriptor(
@@ -1346,7 +1346,7 @@ def test_host_picks_a_workflow_from_trs(trs: str) -> None:
         request = json.loads(response)["run_request"]
         assert request == {
             **DEMO_REQUEST,
-            "workflow_url": f"{trs}/tools/ga4gh-io-schema-demo/versions/1.0.0"
+            "workflow_url": f"{trs}/tools/ga4gh-io-schema-demo/versions/1.1.0"
             "/PLAIN_WDL/descriptor/demo.wdl",
         }
         status, _, _ = _request(f"{host}/api/params", body, "POST")

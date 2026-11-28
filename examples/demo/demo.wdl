@@ -5,7 +5,8 @@
 version 1.1
 
 # The demo workflow of the GA4GH I/O Schema (see docs/adoption/demo.md):
-# filters, sorts and indexes aligned reads, and writes an HTML report.
+# filters, sorts and indexes aligned reads, and writes an HTML report and a
+# table of read counts per reference sequence.
 # Its I/O Schema, ga4gh-io.schema.json, is generated from this document by
 # build_schema.py; change both together.
 
@@ -46,6 +47,10 @@ workflow io_schema_demo {
       label: "Alignment report (HTML)",
       description: "Statistics of the reads before and after filtering."
     }
+    read_counts: {
+      label: "Read counts per reference (TSV)",
+      description: "Mapped and unmapped reads per reference sequence, before and after filtering; unmapped reads without a position are counted under *."
+    }
   }
 
   call filter_sort_index {
@@ -63,10 +68,17 @@ workflow io_schema_demo {
       read_filter = read_filter
   }
 
+  call count_reads {
+    input:
+      reads = reads,
+      filtered_bam = filter_sort_index.bam
+  }
+
   output {
     File filtered_bam = filter_sort_index.bam
     File filtered_bam_index = filter_sort_index.bai
     File report = make_report.html
+    File read_counts = count_reads.tsv
   }
 }
 
@@ -139,6 +151,40 @@ task make_report {
 
   output {
     File html = "report.html"
+  }
+
+  runtime {
+    docker: "quay.io/biocontainers/samtools:1.24--h9dcdb79_1"
+    cpu: 1
+    memory: "1 GiB"
+  }
+}
+
+task count_reads {
+  input {
+    File reads
+    File filtered_bam
+  }
+
+  command <<<
+    set -euo pipefail
+    # Without an index, idxstats reads the whole file
+    samtools idxstats "~{reads}" > before.tsv
+    samtools idxstats "~{filtered_bam}" > after.tsv
+    # Joined by name, in the order of the input's header; the last line, *,
+    # counts the unmapped reads without a position
+    awk -F '\t' -v OFS='\t' '
+      NR == FNR { mapped[$1] = $3; unmapped[$1] = $4; next }
+      FNR == 1 {
+        print "reference", "length", "mapped_before", "unmapped_before",
+          "mapped_after", "unmapped_after"
+      }
+      { print $1, $2, $3, $4, mapped[$1] + 0, unmapped[$1] + 0 }
+    ' after.tsv before.tsv > read_counts.tsv
+  >>>
+
+  output {
+    File tsv = "read_counts.tsv"
   }
 
   runtime {
